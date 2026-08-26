@@ -1,10 +1,15 @@
-use serde::Serialize;
-use std::sync::Mutex;
+pub mod game;
 
-#[derive(Default)]
+use std::sync::Mutex;
+use serde::Serialize;
+use sqlx::SqlitePool;
+
 pub struct AppState {
-  #[allow(dead_code)]
-  pub game_date: Mutex<String>,
+  pub pool: Mutex<Option<SqlitePool>>,
+}
+
+impl Default for AppState {
+  fn default() -> Self { Self { pool: Mutex::new(None) } }
 }
 
 #[derive(Serialize)]

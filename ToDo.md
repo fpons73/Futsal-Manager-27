@@ -17,9 +17,9 @@
 - [ ] M5: Motor de partido 2D con reglas futsal
 - [x] M5: Motor de partido 2D con reglas futsal — ECS-lite, fatiga, faltas/6ª doble-penalti, powerplay, cambios volantes, tests DB OK
 - [x] M6: Procesador de tiempo y simulación multi-liga — advance_day con engine, standings y posiciones, full season 662 partidos, bugfix `current_date`→`game_date` (keyword SQLite) y FK club_id, 12 tests OK
-- [ ] M7: API de comandos Tauri completa
-- [ ] M8: Frontend gestión (dashboard, plantilla, tácticas, ligas)
-- [ ] M9: Partido en vivo con campo Konva
+- [x] M7: API de comandos Tauri completa — new_game, game_state, advance_day/week, standings, fixtures, squad, competitions, next_fixture
+- [x] M8: Frontend gestión — NewGame (46 clubes), Dashboard (fecha, próximo partido, clasificación, avance), Plantilla, Clasificación, Calendario, shell navegación, `api.ts`/`store.ts`
+- [ ] M9: Partido en vivo con campo Konva (placeholder, motor listo)
 - [ ] M10: Mercado de fichajes + bandeja de entrada
 - [ ] M11: Entrenamientos, progresión, lesiones y sanciones
 - [ ] M12: Finanzas del club
@@ -39,3 +39,5 @@
 | 2026-08-26 | M4 | Calendarios round-robin doble: 662 partidos generados, algoritmo círculo, idempotente, balance y tests OK. |
 | 2026-08-26 | M5 | Motor 2D: movimiento táctico, duelos, cálculo de gol por distancia/ángulo, faltas acumulativas, doble-penalti, powerplay, cambios por fatiga, simulate_clubs desde DB. 5 tests OK. |
 | 2026-08-26 | M6 | Simulación: `advance_day` headless multi-liga, actualización de clasificaciones y posiciones, eventos a DB. Corrección crítica: `current_date` era keyword SQLite (reenamed a `game_date`), FK `club_id` en eventos. Full season 662/662 OK. |
+| 2026-08-26 | M7 | API Tauri: 9 comandos tipados, pool persistente en AppState, new_game recrea file DB, fix `current_date`→`game_date` en todos los queries. |
+| 2026-08-26 | M8 | Frontend: 5 pantallas (NewGame, Dashboard, Squad, Standings, Fixtures) + FutsalPitch Konva placeholder, Zustand + api.ts, build 457 kB OK. |
