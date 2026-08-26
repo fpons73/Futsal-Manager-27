@@ -155,6 +155,8 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
     tx.commit().await.map_err(|e| e.to_string())?;
+
+    crate::competition::generate_calendars(pool).await?;
     Ok(())
 }
 
@@ -280,5 +282,7 @@ mod tests {
         assert_eq!(fin, 46);
         let (contracts,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM contracts").fetch_one(&pool).await.unwrap();
         assert_eq!(contracts, 552);
+        let (matches,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches").fetch_one(&pool).await.unwrap();
+        assert_eq!(matches, 662, "662 partidos doble robin (240+240+182)");
     }
 }

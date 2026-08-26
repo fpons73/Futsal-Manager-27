@@ -1,4 +1,5 @@
 mod commands;
+mod competition;
 mod db;
 mod world;
 
