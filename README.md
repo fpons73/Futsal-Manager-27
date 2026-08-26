@@ -26,7 +26,7 @@ Simulador de gestión de fútbol sala para PC, inspirado en Football Manager per
 ## Requisitos
 
 - **Rust** 1.77+ (`rustup`)
-- **Node** 20+ y **npm**
+- **Node** 20+ y **pnpm** 9+ (`npm i -g pnpm`)
 - Windows 10/11 con WebView2 (incluido en Windows 11)
 
 ## Instalación y ejecución
@@ -37,21 +37,21 @@ git clone https://github.com/fpons73/Futsal-Manager-27.git
 cd Futsal-Manager-27
 
 # 2. Dependencias frontend
-npm install
+pnpm install
 
 # 3. Desarrollo (Vite + Tauri, hot-reload)
-npm run tauri dev
+pnpm tauri dev
 #  → abre la ventana nativa. El primer arranque compila Rust (3-5 min).
 
 # 4. Build de producción
-npm run build          # frontend
-npm run tauri build    # instalador .msi / .exe en src-tauri/target/release/bundle/
+pnpm run build          # frontend
+pnpm tauri build    # instalador .msi / .exe en src-tauri/target/release/bundle/
 ```
 
 ### Solo frontend (sin Tauri, en navegador)
 
 ```bash
-npm run dev
+pnpm run dev
 # abre http://localhost:5173 — requiere backend Tauri para datos reales
 ```
 
