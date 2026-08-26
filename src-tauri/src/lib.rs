@@ -1,6 +1,7 @@
 mod commands;
 mod competition;
 mod db;
+mod engine;
 mod world;
 
 use commands::AppState;

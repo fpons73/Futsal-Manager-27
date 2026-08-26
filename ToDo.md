@@ -15,6 +15,7 @@
 - [x] M3: Generación procedural del mundo (3 ligas) — 46 clubes, 552 jugadores, 3 competiciones, test OK
 - [x] M4: Competiciones y calendario round-robin — doble robin 662 partidos (240+240+182), balance verificado, 30/30/26 jornadas, tests OK
 - [ ] M5: Motor de partido 2D con reglas futsal
+- [x] M5: Motor de partido 2D con reglas futsal — ECS-lite, fatiga, faltas/6ª doble-penalti, powerplay, cambios volantes, tests DB OK
 - [ ] M6: Procesador de tiempo y simulación multi-liga
 - [ ] M7: API de comandos Tauri completa
 - [ ] M8: Frontend gestión (dashboard, plantilla, tácticas, ligas)
@@ -36,3 +37,4 @@
 | 2026-08-26 | M2 | SQLite WAL, 20+ tablas, indices, test migración OK (23 tablas). |
 | 2026-08-26 | M3 | Mundo: 3 confederaciones, 3 naciones, ciudades, 46 estadios/clubes/finanzas/tácticas, 552 jugadores con atributos/contratos, test_counts OK. |
 | 2026-08-26 | M4 | Calendarios round-robin doble: 662 partidos generados, algoritmo círculo, idempotente, balance y tests OK. |
+| 2026-08-26 | M5 | Motor 2D: movimiento táctico, duelos, cálculo de gol por distancia/ángulo, faltas acumulativas, doble-penalti, powerplay, cambios por fatiga, simulate_clubs desde DB. 5 tests OK. |
