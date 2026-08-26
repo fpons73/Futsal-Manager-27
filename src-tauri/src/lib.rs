@@ -23,7 +23,10 @@ pub fn run() {
       commands::game::get_fixtures,
       commands::game::get_squad,
       commands::game::get_competitions,
-      commands::game::get_next_fixture
+      commands::game::get_next_fixture,
+      commands::match_live::start_live_match,
+      commands::match_live::tick_live,
+      commands::match_live::get_live_snapshot
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

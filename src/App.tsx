@@ -4,7 +4,7 @@ import Dashboard from "./components/screens/Dashboard";
 import SquadView from "./components/screens/SquadView";
 import StandingsView from "./components/screens/StandingsView";
 import FixturesView from "./components/screens/FixturesView";
-import FutsalPitch from "./components/FutsalPitch";
+import LiveMatch from "./components/screens/LiveMatch";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { screen, setScreen, gameState, userClubId } = useStore();
@@ -46,15 +46,7 @@ export default function App() {
       {screen === "squad" && <SquadView />}
       {screen === "standings" && <StandingsView />}
       {screen === "fixtures" && <FixturesView />}
-      {screen === "tactics" && (
-        <div className="mx-auto max-w-6xl space-y-4 p-6">
-          <h2 className="text-xl font-black">Partido en vivo</h2>
-          <FutsalPitch />
-          <div className="rounded-xl border border-fm-border bg-fm-panel p-4 text-sm text-fm-dim">
-            Motor 2D conectado al backend Rust. Próximo hito: controles de partido en vivo, cambios volantes y powerplay interactivo.
-          </div>
-        </div>
-      )}
+      {screen === "tactics" && <LiveMatch />}
     </Shell>
   );
 }

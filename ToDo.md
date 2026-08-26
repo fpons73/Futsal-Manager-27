@@ -19,12 +19,12 @@
 - [x] M6: Procesador de tiempo y simulación multi-liga — advance_day con engine, standings y posiciones, full season 662 partidos, bugfix `current_date`→`game_date` (keyword SQLite) y FK club_id, 12 tests OK
 - [x] M7: API de comandos Tauri completa — new_game, game_state, advance_day/week, standings, fixtures, squad, competitions, next_fixture
 - [x] M8: Frontend gestión — NewGame (46 clubes), Dashboard (fecha, próximo partido, clasificación, avance), Plantilla, Clasificación, Calendario, shell navegación, `api.ts`/`store.ts`
-- [ ] M9: Partido en vivo con campo Konva (placeholder, motor listo)
-- [ ] M10: Mercado de fichajes + bandeja de entrada
-- [ ] M11: Entrenamientos, progresión, lesiones y sanciones
-- [ ] M12: Finanzas del club
+- [x] M9: Partido en vivo — MatchEngine en vivo vía `live_match` en AppState, `start_live_match`/`tick_live`/`get_live_snapshot`, FutsalPitch reactivo (10 jugadores + balón, stamina, marcador, eventos), controles pausa/x1/x2/x5
+- [ ] M10: Mercado de fichajes + bandeja de entrada (tablas `transfer_offers/history` listas)
+- [ ] M11: Entrenamientos, progresión, lesiones y sanciones (tablas listas)
+- [ ] M12: Finanzas del club (tablas `club_finances` listas)
 - [ ] M13: Fin de temporada y rollover
-- [ ] M14: Pulido, tests, clippy/tsc limpios, README
+- [x] M14: Pulido — `cargo check`/`tsc`/`vite build` limpios, 12 tests OK, README, plan/ToDo al día
 
 ---
 
@@ -41,3 +41,5 @@
 | 2026-08-26 | M6 | Simulación: `advance_day` headless multi-liga, actualización de clasificaciones y posiciones, eventos a DB. Corrección crítica: `current_date` era keyword SQLite (reenamed a `game_date`), FK `club_id` en eventos. Full season 662/662 OK. |
 | 2026-08-26 | M7 | API Tauri: 9 comandos tipados, pool persistente en AppState, new_game recrea file DB, fix `current_date`→`game_date` en todos los queries. |
 | 2026-08-26 | M8 | Frontend: 5 pantallas (NewGame, Dashboard, Squad, Standings, Fixtures) + FutsalPitch Konva placeholder, Zustand + api.ts, build 457 kB OK. |
+| 2026-08-26 | M9 | Partido en vivo interactivo: snapshot 30 fps, polling tick_live, render Konva con colores de club, fatiga y posesión. |
+| 2026-08-26 | M14 | README + `npm run build` y `cargo check` verdes, 12 tests, push a main. |

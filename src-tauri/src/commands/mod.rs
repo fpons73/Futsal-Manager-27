@@ -1,15 +1,18 @@
 pub mod game;
+pub mod match_live;
 
 use std::sync::Mutex;
 use serde::Serialize;
 use sqlx::SqlitePool;
+use crate::engine::MatchEngine;
 
 pub struct AppState {
   pub pool: Mutex<Option<SqlitePool>>,
+  pub live_match: Mutex<Option<MatchEngine>>,
 }
 
 impl Default for AppState {
-  fn default() -> Self { Self { pool: Mutex::new(None) } }
+  fn default() -> Self { Self { pool: Mutex::new(None), live_match: Mutex::new(None) } }
 }
 
 #[derive(Serialize)]
