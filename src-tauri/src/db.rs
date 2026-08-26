@@ -13,6 +13,10 @@ pub fn db_path() -> PathBuf {
     }
 }
 
+pub fn app_data_dir() -> PathBuf {
+    dirs_next().unwrap_or_else(|| PathBuf::from("."))
+}
+
 fn dirs_next() -> Option<PathBuf> {
     if let Some(base) = std::env::var_os("APPDATA") {
         return Some(PathBuf::from(base).join("FutsalManager27"));

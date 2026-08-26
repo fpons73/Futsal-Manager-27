@@ -25,6 +25,7 @@
 - [x] M14: Pulido — `cargo check`/`tsc`/`vite build` limpios, 12 tests OK, README, plan/ToDo al día
 - [x] M15: Mundo PRD completo — 37 competiciones, 26 naciones, 6 confederaciones, 222 clubes, +2600 jugadores (names ES/BR/PT + genéricos por país), tests actualizados
 - [x] M16: Editor BD — CRUD países/clubes/jugadores/competiciones (backend `editor/mod.rs` + `editor_cmd.rs`, frontend `EditorView`), auto-init `editor_init` (auto-seed), navegación "Editor"
+- [x] M17: Editor estilo FM — escudo por club (subida local base64→fichero + asset protocol), entrenador (staff role 'coach'), cuerpo técnico (staff: coach/assistant/scout/physio), gestión de plantilla (fichar/liberar jugadores por club)
 
 ---
 
@@ -49,3 +50,4 @@
 | 2026-08-26 | M14 | README + `pnpm run build` 479 kB y `cargo check` verdes, 12 tests, push a main. |
 | 2026-08-26 | M15 | Mundo PRD: 37 competiciones (19 ligas + 7 internacionales + 11 extras), 26 naciones (6 confed), 222 clubes, +2600 jugadores. Fix crash memoria: referencias dangling por `unsafe transmute` en `owned_defs`. |
 | 2026-08-26 | M16 | Editor: CRUD naciones/clubes/jugadores/competiciones, `editor_init` auto-seed, pestaña Editor en nav, botón NewGame. |
+| 2026-08-26 | M17 | Editor FM: migración 003 (staff + clubs.crest_path/coach_id), subida escudo local, entrenador/staff por club, gestión plantilla (fichar/liberar), asset protocol para escudos. |

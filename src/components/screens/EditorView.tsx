@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import ClubEditor from "../editor/ClubEditor";
 
-type Tab = "clubs" | "players" | "nations" | "competitions" | "stadiums";
+type Tab = "clubs" | "players" | "nations" | "competitions" | "staff" | "stadiums";
 
 const emptyClub = { id: 0, name: "", short: "", nation: 1, city: "", stadium: "", cap: 2000, rep: 600, c1: "#0f4c3a", c2: "#ffffff" };
 const emptyPlayer = { id: 0, first: "", last: "", nation: 1, club: "", ca: 80, pa: 120, pos: "ALA" };
@@ -20,6 +21,7 @@ export default function EditorView() {
   const [newComp, setNewComp] = useState(emptyComp);
   const [confeds, setConfeds] = useState<any[]>([]);
   const [nations, setNations] = useState<any[]>([]);
+  const [editingClub, setEditingClub] = useState<any | null>(null);
 
   const load = async (t: Tab) => {
     setLoading(true);
@@ -28,6 +30,7 @@ export default function EditorView() {
       else if (t === "clubs") setData(await invoke<any[]>("editor_list_clubs"));
       else if (t === "players") setData(await invoke<any[]>("editor_list_players", { limit: 200 }));
       else if (t === "competitions") setData(await invoke<any[]>("editor_list_competitions"));
+      else if (t === "staff") setData(await invoke<any[]>("editor_list_staff"));
       else if (t === "stadiums") setData(await invoke<any[]>("editor_list_stadiums"));
       setMsg(null);
     } catch (e) { setMsg(String(e)); }
@@ -65,10 +68,11 @@ export default function EditorView() {
       if (newClub.id) await invoke("editor_update_club", { id: newClub.id, name: newClub.name, shortName: newClub.short, nationId: newClub.nation, city: newClub.city, stadium: newClub.stadium, capacity: newClub.cap, reputation: newClub.rep, c1: newClub.c1, c2: newClub.c2 });
       else await invoke("editor_create_club", { name: newClub.name, shortName: newClub.short, nationId: newClub.nation, city: newClub.city, stadium: newClub.stadium, capacity: newClub.cap, reputation: newClub.rep, c1: newClub.c1, c2: newClub.c2 });
       setMsg(newClub.id ? "Club actualizado" : "Club creado");
+      if (newClub.id) setEditingClub((prev:any)=> prev ? { ...prev, name: newClub.name, short_name: newClub.short, city: newClub.city, stadium: newClub.stadium, capacity: newClub.cap, reputation: newClub.rep, primary_color: newClub.c1, secondary_color: newClub.c2 } : prev);
       setNewClub(emptyClub); load("clubs");
     }catch(e){ setMsg(String(e)); }
   };
-  const editClub = (c:any) => setNewClub({ id: c.id, name: c.name, short: c.short_name, nation: c.nation_id, city: c.city ?? "", stadium: c.stadium ?? "", cap: c.capacity ?? 2000, rep: c.reputation, c1: c.primary_color ?? "#0f4c3a", c2: c.secondary_color ?? "#ffffff" });
+  const editClub = (c:any) => { setNewClub({ id: c.id, name: c.name, short: c.short_name, nation: c.nation_id, city: c.city ?? "", stadium: c.stadium ?? "", cap: c.capacity ?? 2000, rep: c.reputation, c1: c.primary_color ?? "#0f4c3a", c2: c.secondary_color ?? "#ffffff" }); setEditingClub(c); };
   const delClub = async (id:number) => { if(!confirm("¿Borrar club? También borrará contratos/plantilla asociada")) return; try{ await invoke("editor_delete_club",{id}); load("clubs"); }catch(e){ setMsg(String(e)); } };
 
   const savePlayer = async () => {
@@ -104,7 +108,7 @@ export default function EditorView() {
       <p className="text-sm text-fm-dim">Crea, edita y elimina países, clubes, jugadores y competiciones. Pulsa «Editar» en una fila para cargarla en el formulario, o «Borrar» para eliminarla.</p>
 
       <div className="flex flex-wrap gap-1">
-        {(["clubs","players","nations","competitions","stadiums"] as Tab[]).map((t)=>(
+        {(["clubs","players","nations","competitions","staff","stadiums"] as Tab[]).map((t)=>(
           <button key={t} onClick={()=>setTab(t)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${tab===t ? "bg-fm-accent text-black" : "bg-fm-panel border border-fm-border text-fm-dim"}`}>{t.toUpperCase()}</button>
         ))}
       </div>
@@ -139,8 +143,9 @@ export default function EditorView() {
 
           {tab==="clubs" && (
             <div className="space-y-3">
+              {editingClub && <ClubEditor club={editingClub} nations={nations} onClose={()=>{ setEditingClub(null); setNewClub(emptyClub); load("clubs"); }} />}
               <div className="rounded-xl border border-fm-border bg-fm-panel p-3">
-                <div className="mb-2 text-xs font-bold uppercase tracking-widest text-fm-dim">{inEdit(newClub) ? "Editar club · ID " + newClub.id : "Nuevo club"}</div>
+                <div className="mb-2 text-xs font-bold uppercase tracking-widest text-fm-dim">{inEdit(newClub) ? "Datos del club · ID " + newClub.id : "Nuevo club"}</div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <input placeholder="Nombre" value={newClub.name} onChange={(e)=>setNewClub({...newClub,name:e.target.value})} className="rounded border border-fm-border bg-fm-bg px-2 py-1.5 text-sm" />
                   <input placeholder="Corto (3-4)" value={newClub.short} onChange={(e)=>setNewClub({...newClub,short:e.target.value})} className="rounded border border-fm-border bg-fm-bg px-2 py-1.5 text-sm" />
@@ -221,6 +226,31 @@ export default function EditorView() {
                   <tbody>{data.map((c:any)=><tr key={c.id} className="border-t border-fm-border hover:bg-fm-panel2"><td className="px-2 py-1.5 font-semibold">{c.name}</td><td className="px-2 py-1.5 text-xs">{c.nation || "—"}</td><td className="px-2 py-1.5 text-center">{c.tier ?? "—"}</td><td className="px-2 py-1.5 text-center">{c.total_teams ?? "—"}</td><td className="px-2 py-1.5 text-xs">{c.season}</td><td className="px-2 py-1.5 text-right space-x-1"><button onClick={()=>editComp(c)} className="rounded bg-sky-600 px-2 py-0.5 text-xs text-white">Editar</button><button onClick={()=>delComp(c.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">Borrar</button></td></tr>)}</tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {tab==="staff" && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-fm-border bg-fm-panel">
+                <div className="border-b border-fm-border bg-fm-bg px-3 py-2 text-xs font-bold uppercase tracking-widest text-fm-dim">Staff · {data.length}</div>
+                <div className="max-h-[28rem] overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-fm-bg text-xs uppercase tracking-widest text-fm-dim"><tr><th className="px-2 py-2 text-left">Staff</th><th className="px-2 py-2">Rol</th><th className="px-2 py-2">Club</th><th className="px-2 py-2">Táctica</th><th className="px-2 py-2">Gestión</th><th className="px-2 py-2">Salario</th><th></th></tr></thead>
+                    <tbody>{data.map((s:any)=>(
+                      <tr key={s.id} className="border-t border-fm-border hover:bg-fm-panel2">
+                        <td className="px-2 py-1.5 font-semibold">{s.first_name} {s.last_name}</td>
+                        <td className="px-2 py-1.5 text-center"><span className="rounded bg-fm-bg px-1.5 py-0.5 text-xs font-bold">{s.role}</span></td>
+                        <td className="px-2 py-1.5 text-xs">{s.club_name || "libre"}</td>
+                        <td className="px-2 py-1.5 text-center font-mono">{s.tactical}</td>
+                        <td className="px-2 py-1.5 text-center font-mono">{s.man_management}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-xs">€{Math.round(s.wage_weekly).toLocaleString()}</td>
+                        <td className="px-2 py-1.5 text-right"><button onClick={()=>{ if(!confirm("¿Borrar staff?")) return; invoke("editor_delete_staff",{id:s.id}).then(()=>load("staff")).catch((e)=>setMsg(String(e))); }} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">Borrar</button></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="rounded bg-sky-500/10 p-3 text-xs text-sky-200">El cuerpo técnico (entrenador, asistentes, scouts, fisios) se gestiona también desde la edición de cada club (pestaña Clubes → Editar).</div>
             </div>
           )}
 

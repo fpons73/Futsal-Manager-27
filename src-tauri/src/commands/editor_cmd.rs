@@ -46,6 +46,21 @@ pub async fn editor_list_players(state: State<'_, AppState>, limit: Option<i64>)
     crate::editor::list_players(&pool, limit.unwrap_or(100)).await
 }
 #[tauri::command]
+pub async fn editor_list_players_by_club(state: State<'_, AppState>, club_id: i64) -> Result<Vec<crate::editor::PlayerRow>, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::list_players_by_club(&pool, club_id).await
+}
+#[tauri::command]
+pub async fn editor_assign_player(state: State<'_, AppState>, player_id: i64, club_id: i64) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::assign_player(&pool, player_id, club_id).await
+}
+#[tauri::command]
+pub async fn editor_release_player(state: State<'_, AppState>, player_id: i64) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::release_player(&pool, player_id).await
+}
+#[tauri::command]
 pub async fn editor_list_competitions(state: State<'_, AppState>) -> Result<Vec<crate::editor::CompetitionRow>, String> {
     let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
     crate::editor::list_competitions(&pool).await
@@ -127,4 +142,40 @@ pub async fn editor_get_squad_count(state: State<'_, AppState>, club_id: i64) ->
     let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
     let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM contracts WHERE club_id=? AND is_active=1").bind(club_id).fetch_one(&pool).await.map_err(|e| e.to_string())?;
     Ok(cnt)
+}
+
+#[tauri::command]
+pub async fn editor_list_staff(state: State<'_, AppState>, club_id: Option<i64>) -> Result<Vec<crate::editor::StaffRow>, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::list_staff(&pool, club_id).await
+}
+#[tauri::command]
+pub async fn editor_list_coaches(state: State<'_, AppState>) -> Result<Vec<crate::editor::StaffRow>, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::list_coaches(&pool).await
+}
+#[tauri::command]
+pub async fn editor_create_staff(state: State<'_, AppState>, first: String, last: String, nation_id: i64, role: String, club_id: Option<i64>, tactical: i64, man_management: i64, judging: i64, motivating: i64, working_youngsters: i64, physio_level: i64, wage_weekly: f64) -> Result<i64, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::create_staff(&pool, first, last, nation_id, role, club_id, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly).await
+}
+#[tauri::command]
+pub async fn editor_update_staff(state: State<'_, AppState>, id: i64, first: String, last: String, nation_id: i64, role: String, club_id: Option<i64>, tactical: i64, man_management: i64, judging: i64, motivating: i64, working_youngsters: i64, physio_level: i64, wage_weekly: f64) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_staff(&pool, id, first, last, nation_id, role, club_id, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly).await
+}
+#[tauri::command]
+pub async fn editor_delete_staff(state: State<'_, AppState>, id: i64) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::delete_staff(&pool, id).await
+}
+#[tauri::command]
+pub async fn editor_set_coach(state: State<'_, AppState>, club_id: i64, staff_id: Option<i64>) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_coach(&pool, club_id, staff_id).await
+}
+#[tauri::command]
+pub async fn editor_set_crest(state: State<'_, AppState>, club_id: i64, data: String, ext: String) -> Result<String, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_crest(&pool, club_id, &data, &ext).await
 }

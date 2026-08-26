@@ -51,6 +51,9 @@ pub fn run() {
       commands::editor_cmd::editor_list_nations,
       commands::editor_cmd::editor_list_clubs,
       commands::editor_cmd::editor_list_players,
+      commands::editor_cmd::editor_list_players_by_club,
+      commands::editor_cmd::editor_assign_player,
+      commands::editor_cmd::editor_release_player,
       commands::editor_cmd::editor_list_competitions,
       commands::editor_cmd::editor_list_confederations,
       commands::editor_cmd::editor_list_cities,
@@ -66,7 +69,14 @@ pub fn run() {
       commands::editor_cmd::editor_create_competition,
       commands::editor_cmd::editor_delete_competition,
       commands::editor_cmd::editor_update_competition,
-      commands::editor_cmd::editor_get_squad_count
+      commands::editor_cmd::editor_get_squad_count,
+      commands::editor_cmd::editor_list_staff,
+      commands::editor_cmd::editor_list_coaches,
+      commands::editor_cmd::editor_create_staff,
+      commands::editor_cmd::editor_update_staff,
+      commands::editor_cmd::editor_delete_staff,
+      commands::editor_cmd::editor_set_coach,
+      commands::editor_cmd::editor_set_crest
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
