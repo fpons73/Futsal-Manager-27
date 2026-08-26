@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate, Weekday};
 use serde::Serialize;
 use sqlx::SqlitePool;
 
@@ -51,9 +51,41 @@ pub async fn advance_day(pool: &SqlitePool) -> Result<AdvanceResult, String> {
         results.push(format!("{} {}-{} {}", home_name.0, home_goals, away_goals, away_name.0));
     }
 
+    // Ticket income for home clubs
+    for (_, hid, _, _) in matches.iter().copied() {
+        let (cap,): (Option<i64>,) = sqlx::query_as("SELECT capacity FROM stadiums WHERE id=(SELECT stadium_id FROM clubs WHERE id=?)").bind(hid).fetch_optional(pool).await.map_err(|e| e.to_string())?.unwrap_or((Some(3000),));
+        let cap = cap.unwrap_or(3000) as f64;
+        let attendance = (cap * 0.65 + rand::random::<f64>() * cap * 0.25) as i64;
+        let income = attendance as f64 * 12.0;
+        let _ = crate::finance::add_ticket_income(pool, hid, income).await;
+    }
+
+    // Weekly processing on Mondays
     let next = date + chrono::Duration::days(1);
     let next_s = next.format("%Y-%m-%d").to_string();
     sqlx::query("UPDATE game_state SET game_date=? WHERE id=1").bind(&next_s).execute(pool).await.map_err(|e| e.to_string())?;
+
+    if next.weekday() == Weekday::Mon {
+        let (user_club,): (Option<i64>,) = sqlx::query_as("SELECT user_club_id FROM game_state WHERE id=1").fetch_one(pool).await.map_err(|e| e.to_string())?;
+        if let Some(uc) = user_club {
+            let _ = crate::training::process_training_week(pool, uc).await;
+        }
+        let _ = crate::finance::process_weekly_finances(pool).await;
+        // Recover player conditions slightly each week
+        sqlx::query("UPDATE player_states SET condition_val = MIN(100, condition_val + 5) WHERE condition_val < 100").execute(pool).await.ok();
+        sqlx::query("UPDATE player_states SET match_fitness = MIN(100, match_fitness + 3) WHERE match_fitness < 100").execute(pool).await.ok();
+    }
+
+    // Random incoming offers
+    {
+        let (user_club,): (Option<i64>,) = sqlx::query_as("SELECT user_club_id FROM game_state WHERE id=1").fetch_one(pool).await.map_err(|e| e.to_string())?;
+        if let Some(uc) = user_club {
+            let _ = crate::transfer::generate_incoming_offers(pool, uc).await;
+        }
+    }
+
+    // Auto-recover injuries past return date
+    sqlx::query("UPDATE injuries SET is_active=0 WHERE is_active=1 AND expected_return_date <= ?").bind(&next_s).execute(pool).await.ok();
 
     recompute_positions(pool).await?;
 

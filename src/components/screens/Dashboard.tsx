@@ -3,24 +3,30 @@ import { api, type FixtureRow, type StandingRow } from "../../api";
 import { useStore } from "../../store";
 
 export default function Dashboard() {
-  const { gameState, userClubId, clubs, competitions, selectedComp } = useStore();
+  const { gameState, userClubId, clubs, competitions, selectedComp, setScreen } = useStore();
   const [next, setNext] = useState<FixtureRow | null>(null);
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [advancing, setAdvancing] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
+  const [seasonDone, setSeasonDone] = useState(false);
+  const [seasonMsg, setSeasonMsg] = useState<string | null>(null);
 
   const myClub = clubs.find((c) => c.id === userClubId);
   const myComp = competitions.find((c) => c.id === selectedComp) ?? competitions[0];
 
-  useEffect(() => {
+  const refresh = async () => {
     if (!userClubId) return;
-    api.getNextFixture(userClubId).then(setNext).catch(()=>{});
-  }, [userClubId, gameState?.game_date]);
+    const [n, s, done] = await Promise.all([
+      api.getNextFixture(userClubId).catch(()=>null),
+      myComp ? api.getStandings(myComp.id).catch(()=>[] as StandingRow[]) : Promise.resolve([] as StandingRow[]),
+      api.checkSeasonFinished().catch(()=>false)
+    ]);
+    setNext(n as any);
+    setStandings(s as any);
+    setSeasonDone(done as boolean);
+  };
 
-  useEffect(() => {
-    if (!myComp) return;
-    api.getStandings(myComp.id).then(setStandings).catch(()=>{});
-  }, [myComp, gameState?.game_date]);
+  useEffect(() => { refresh(); }, [userClubId, gameState?.game_date, myComp?.id]);
 
   const advance = async (days: number) => {
     setAdvancing(true);
@@ -28,15 +34,25 @@ export default function Dashboard() {
       if (days === 1) {
         const r = await api.advanceDay();
         setEvents((e) => [...r.results, ...e].slice(0, 12));
-        const st = await api.getGameState(); useStore.getState().setGameState(st);
       } else {
         const rs = await api.advanceWeek();
         const all = rs.flatMap((r) => r.results);
         setEvents((e) => [...all, ...e].slice(0, 12));
-        const st = await api.getGameState(); useStore.getState().setGameState(st);
       }
+      const st = await api.getGameState(); useStore.getState().setGameState(st);
+      await refresh();
     } catch (e) { alert(String(e)); }
     finally { setAdvancing(false); }
+  };
+
+  const rollover = async () => {
+    if (!confirm("¿Finalizar temporada y comenzar la siguiente? Se retirarán veteranos y llegarán jóvenes.")) return;
+    try {
+      const msg = await api.rolloverSeason();
+      setSeasonMsg(msg);
+      const st = await api.getGameState(); useStore.getState().setGameState(st);
+      await refresh();
+    } catch(e){ alert(String(e)); }
   };
 
   if (!gameState || !myClub) return <div className="p-8 text-center text-fm-dim">Cargando…</div>;
@@ -60,6 +76,15 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {seasonDone && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="font-bold text-amber-400">¡Temporada finalizada!</div>
+          <div className="mt-1 text-sm text-fm-dim">Todos los partidos se han jugado. Pulsa para generar la siguiente temporada, retirar veteranos y rejuvenecer la plantilla.</div>
+          <button onClick={rollover} className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black">Comenzar temporada siguiente</button>
+          {seasonMsg && <div className="mt-2 rounded bg-fm-bg px-3 py-2 font-mono text-xs">{seasonMsg}</div>}
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-fm-border bg-fm-panel p-4">
           <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-fm-dim">Próximo partido</h3>
@@ -72,8 +97,9 @@ export default function Dashboard() {
                 <span className={`font-bold ${next.away_id===userClubId ? "text-fm-accent" : ""}`}>{next.away_short}</span>
               </div>
               <div className="text-xs text-fm-dim">{next.home_name} — {next.away_name}</div>
+              <button onClick={()=>setScreen("tactics")} className="mt-2 w-full rounded-lg bg-fm-accent px-3 py-1.5 text-sm font-bold text-black">Ver en vivo →</button>
             </div>
-          ) : <div className="text-sm text-fm-dim">Sin partidos pendientes</div>}
+          ) : <div className="text-sm text-fm-dim">Sin partidos pendientes {seasonDone && "— temporada terminada"}</div>}
         </div>
 
         <div className="rounded-xl border border-fm-border bg-fm-panel p-4">
@@ -92,6 +118,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          <button onClick={()=>setScreen("standings")} className="mt-3 text-xs text-fm-dim hover:text-white">Ver tabla completa →</button>
         </div>
 
         <div className="rounded-xl border border-fm-border bg-fm-panel p-4">
@@ -102,6 +129,12 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <button onClick={()=>setScreen("market")} className="rounded-xl border border-fm-border bg-fm-panel p-4 text-left hover:border-fm-accent/30"><div className="text-xs uppercase tracking-widest text-fm-dim">Mercado</div><div className="font-semibold">Fichajes y ofertas</div><div className="text-xs text-fm-dim">Valoración por CA/edad/potencial</div></button>
+        <button onClick={()=>setScreen("training")} className="rounded-xl border border-fm-border bg-fm-panel p-4 text-left hover:border-fm-accent/30"><div className="text-xs uppercase tracking-widest text-fm-dim">Entrenamiento</div><div className="font-semibold">Progreso semanal</div><div className="text-xs text-fm-dim">Jóvenes mejoran más</div></button>
+        <button onClick={()=>setScreen("finance")} className="rounded-xl border border-fm-border bg-fm-panel p-4 text-left hover:border-fm-accent/30"><div className="text-xs uppercase tracking-widest text-fm-dim">Finanzas</div><div className="font-semibold">Balance y salarios</div><div className="text-xs text-fm-dim">Taquilla + patrocinio</div></button>
       </div>
     </div>
   );

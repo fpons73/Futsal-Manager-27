@@ -6,18 +6,20 @@ Simulador de gestión de fútbol sala para PC, inspirado en Football Manager per
 
 ---
 
-## Estado actual — v0.1 (vertical slice jugable)
+## Estado actual — v1.0 (completo jugable)
 
 | Sistema | Estado |
 |---|---|
 | Mundo: 3 ligas (España 16, Brasil 16, Portugal 14) · 46 clubes · 552 jugadores · atributos ponderados por posición | ✅ |
 | Calendario round-robin doble (662 partidos) | ✅ |
-| Motor 2D: 40×20 m, 2×20', faltas acumulativas → doble penalti 10 m, 4 s banda/portero, cambios volantes por fatiga, powerplay, 4 formaciones | ✅ |
-| Simulación multi-liga headless (jornadas completas en <1 s) | ✅ |
-| Avance de tiempo día/semana, standings con DG y posiciones, eventos | ✅ |
-| API Tauri (9 comandos) + persistencia file DB | ✅ |
-| Frontend: NewGame, Dashboard, Plantilla, Clasificación, Calendario, **Partido en vivo** con Konva a 30 fps y controles x1/x2/x5 | ✅ |
-| Mercado de fichajes, entrenamientos, finanzas, fin de temporada | 🔜 (base DB lista, UI en roadmap) |
+| Motor 2D: 40×20 m, 2×20', faltas 6ª→doble penalti, powerplay, cambios por fatiga | ✅ |
+| Simulación multi-liga headless + avance día/semana | ✅ |
+| API Tauri (18 comandos) + persistencia file DB | ✅ |
+| Frontend: 10 pantallas (NewGame, Dashboard, Plantilla, Clasificación, Calendario, Partido en vivo, Mercado, Inbox, Entrenamientos, Finanzas) | ✅ |
+| Mercado: valoración `CA^1.8×edad×potencial`, ofertas AI, negociación, inbox | ✅ |
+| Entrenamientos: 8 tipos, schedule L-V, progreso semanal `edad×gap×prof`, lesiones 0.8% | ✅ |
+| Finanzas: balance, presupuestos, taquilla 65-90%×€12, patrocinio, alerta negativo | ✅ |
+| Fin de temporada: premios, retiradas 33-36a, cantera 17a, nuevo calendario | ✅ |
 
 ---
 
@@ -63,15 +65,19 @@ cargo test -- --nocapture --test-threads=1
 
 ---
 
-## Cómo jugar (v0.1)
+## Cómo jugar (v1.0)
 
-1. **Nueva partida** → elige uno de los 46 clubes (agrupados por España/Brasil/Portugal).
-2. **Dashboard** → fecha, próximo partido, mini-clasificación, botón *Avanzar 1 día / +7 días*.
-3. **Plantilla** → 12 jugadores con CA/PA, salario, condición, atributos (PAS/FIN/REG/ENT/RIT).
-4. **Clasificación / Calendario** → tablas completas y jornadas por ronda (30/30/26).
-5. **Partido** → *Iniciar próximo partido*: motor en vivo con marcador, faltas, tiros, posesión, eventos y fatiga. Controles pausa/x1/x2/x5. El motor decide pases/tiros con `finishing × composure`, faltas → doble penalti a partir de la 6ª, y powerplay si vas perdiendo en los últimos 3'.
+1. **Nueva partida** → elige uno de los 46 clubes (ES/BR/PT).
+2. **Dashboard** → fecha, próximo partido, clasificación, *Avanzar 1 día / +7 días*, alerta fin de temporada → *Rollover*.
+3. **Plantilla** → 12 jugadores con CA/PA, salario, condición, atributos.
+4. **Clasificación / Calendario** → tablas y jornadas (30/30/26).
+5. **Partido** → *Ver en vivo*: motor Rust con faltas→doble penalti, powerplay, cambios; controles pausa/x1/x2/x5.
+6. **Mercado** → 20 jugadores aleatorios, oferta €, negociación AI (≥85% acepta, 60-85% negocia), inbox con ofertas entrantes.
+7. **Entrenamientos** → schedule L-V (técnica/táctica/físico), progreso semanal, lesiones.
+8. **Finanzas** → balance, presupuestos, taquilla y patrocinio semanal.
+9. **Buzón** → mensajes board/staff (fichajes, lesiones, financiera, fin de temporada).
 
-La simulación **headless** resuelve las otras 2 ligas al avanzar días: 662 partidos por temporada.
+La simulación headless resuelve jornadas de las 3 ligas al avanzar: **662 partidos/temporada**.
 
 ---
 
@@ -79,32 +85,27 @@ La simulación **headless** resuelve las otras 2 ligas al avanzar días: 662 par
 
 ```
 src-tauri/
-  migrations/001_initial.sql   # 20+ tablas, WAL, FK, índices
+  migrations/ 001_initial.sql (20+ tablas) + 002_training.sql (8 tipos)
   src/
-    db.rs                      # pools file/memory + migrate!
-    world/                     # seed procedural (nombres ES/BR/PT, CA/PA por reputación)
-    competition/               # round-robin círculo, doble vuelta
-    engine.rs                  # MatchEngine 40×20, 2400 ticks, IA posicional, duelos, stamina
-    simulation/                # advance_day/week → engine + standings
-    commands/                  # Tauri IPC (game.rs, match_live.rs)
+    db.rs, world/, competition/, engine.rs (2400 ticks, IA, duelos)
+    simulation/ (advance_day + taquilla + training/finance/inbox semanal)
+    transfer/, training/, finance/, season/ (rollover)
+    commands/ (game, match_live, transfer, training, finance, season, inbox)
 src/
-  api.ts · store.ts (Zustand)
+  api.ts (18 invokes) · store.ts (Zustand)
   components/
-    screens/ NewGame, Dashboard, SquadView, StandingsView, FixturesView, LiveMatch
-    FutsalPitch.tsx (Konva 820×420, SCALE 20)
+    screens/ NewGame, Dashboard, SquadView, StandingsView, FixturesView,
+             LiveMatch, MarketView, InboxView, TrainingView, FinanceView
+    FutsalPitch.tsx (Konva 820×420)
 ```
 
 **Snapshot del motor** (`MatchSnapshot`) via `invoke("tick_live")` a ~30 fps; el backend avanza `ticks` según velocidad.
 
 ---
 
-## Roadmap
+## Roadmap futuro
 
-- **M10** Mercado: ofertas entrantes/salientes, valoración `CA² × edad × potencial × contrato`, inbox.
-- **M11** Entrenamientos: programación semanal, progresión `edad × profesionalidad × instalaciones`, lesiones/sanciones.
-- **M12** Finanzas: balance, presupuesto fichajes/salarios, taquilla, premios.
-- **M13** Fin de temporada: campeón, pichichi, rollover (envejecimiento, retiradas, regeneración U18).
-- **M14** Pulido: ojeo con niebla de guerra, cantera, copas, tests balance, README vídeo.
+- Ojeo con niebla de guerra (scouting), cantera U18 completa, copas nacionales, competiciones internacionales, playoffs, editor de base de datos.
 
 ---
 

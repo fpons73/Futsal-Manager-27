@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ClubRow, CompRow, GameStateRow } from "./api";
 
-type Screen = "newgame" | "dashboard" | "squad" | "standings" | "fixtures" | "tactics";
+type Screen = "newgame" | "dashboard" | "squad" | "standings" | "fixtures" | "tactics" | "market" | "inbox" | "training" | "finance";
 
 interface AppStore {
   screen: Screen;

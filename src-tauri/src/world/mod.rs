@@ -130,6 +130,12 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
 
         let nat_name = if nid == esp_id { "España" } else if nid == bra_id { "Brasil" } else { "Portugal" };
         generate_squad(&mut tx, club_id, nid, nat_name, def.reputation, base_date, &mut rng).await?;
+        for (day, type_id, intensity) in [(0,1,70),(1,2,75),(2,4,65),(3,3,75),(4,7,60)] {
+            sqlx::query("INSERT OR IGNORE INTO training_schedule(club_id, day_of_week, training_type_id, intensity) VALUES(?,?,?,?)")
+                .bind(club_id).bind(day).bind(type_id).bind(intensity)
+                .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        }
+        sqlx::query("INSERT OR IGNORE INTO youth_academy(club_id, level) VALUES(?,50)").bind(club_id).execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
     for &cid in &[comp_esp, comp_bra, comp_por] {

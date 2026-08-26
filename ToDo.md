@@ -11,19 +11,17 @@
 - [x] plan.md creado
 - [x] M1: Scaffold Tauri v2 + React + TS compilando — `npm run build` + `cargo check` limpios
 - [x] M2: Base de datos SQLite (migraciones + pool) — 001_initial.sql con 20+ tablas, WAL+FK, test `migration_creates_tables` OK
-- [ ] M3: Generación procedural del mundo (3 ligas)
 - [x] M3: Generación procedural del mundo (3 ligas) — 46 clubes, 552 jugadores, 3 competiciones, test OK
 - [x] M4: Competiciones y calendario round-robin — doble robin 662 partidos (240+240+182), balance verificado, 30/30/26 jornadas, tests OK
-- [ ] M5: Motor de partido 2D con reglas futsal
 - [x] M5: Motor de partido 2D con reglas futsal — ECS-lite, fatiga, faltas/6ª doble-penalti, powerplay, cambios volantes, tests DB OK
-- [x] M6: Procesador de tiempo y simulación multi-liga — advance_day con engine, standings y posiciones, full season 662 partidos, bugfix `current_date`→`game_date` (keyword SQLite) y FK club_id, 12 tests OK
+- [x] M6: Procesador de tiempo y simulación multi-liga — advance_day con engine, standings y posiciones, full season 662 partidos, bugfix `current_date`→`game_date` y FK, 12 tests OK
 - [x] M7: API de comandos Tauri completa — new_game, game_state, advance_day/week, standings, fixtures, squad, competitions, next_fixture
-- [x] M8: Frontend gestión — NewGame (46 clubes), Dashboard (fecha, próximo partido, clasificación, avance), Plantilla, Clasificación, Calendario, shell navegación, `api.ts`/`store.ts`
-- [x] M9: Partido en vivo — MatchEngine en vivo vía `live_match` en AppState, `start_live_match`/`tick_live`/`get_live_snapshot`, FutsalPitch reactivo (10 jugadores + balón, stamina, marcador, eventos), controles pausa/x1/x2/x5
-- [ ] M10: Mercado de fichajes + bandeja de entrada (tablas `transfer_offers/history` listas)
-- [ ] M11: Entrenamientos, progresión, lesiones y sanciones (tablas listas)
-- [ ] M12: Finanzas del club (tablas `club_finances` listas)
-- [ ] M13: Fin de temporada y rollover
+- [x] M8: Frontend gestión — NewGame, Dashboard, Plantilla, Clasificación, Calendario, shell navegación, `api.ts`/`store.ts`
+- [x] M9: Partido en vivo — MatchEngine en vivo vía `live_match` en AppState, `start_live_match`/`tick_live`/`get_live_snapshot`, FutsalPitch reactivo, controles pausa/x1/x2/x5
+- [x] M10: Mercado de fichajes + bandeja de entrada — valoración CA², ofertas AI con negociación, inbox con mensajes board/staff, generación automática de ofertas
+- [x] M11: Entrenamientos, progresión, lesiones y sanciones — tipos, schedule semanal, progreso por edad/potencial/profesionalidad, lesiones aleatorias 0.8%
+- [x] M12: Finanzas del club — balance, presupuestos, taquilla (65-90% aforo × €12), patrocinio semanal, alerta balance negativo
+- [x] M13: Fin de temporada y rollover — premios top3, retiradas 33-36 años, regeneración juvenil 17 años, nuevos contratos, calendario siguiente temporada
 - [x] M14: Pulido — `cargo check`/`tsc`/`vite build` limpios, 12 tests OK, README, plan/ToDo al día
 
 ---
@@ -42,4 +40,8 @@
 | 2026-08-26 | M7 | API Tauri: 9 comandos tipados, pool persistente en AppState, new_game recrea file DB, fix `current_date`→`game_date` en todos los queries. |
 | 2026-08-26 | M8 | Frontend: 5 pantallas (NewGame, Dashboard, Squad, Standings, Fixtures) + FutsalPitch Konva placeholder, Zustand + api.ts, build 457 kB OK. |
 | 2026-08-26 | M9 | Partido en vivo interactivo: snapshot 30 fps, polling tick_live, render Konva con colores de club, fatiga y posesión. |
-| 2026-08-26 | M14 | README + `npm run build` y `cargo check` verdes, 12 tests, push a main. |
+| 2026-08-26 | M10 | Mercado + Inbox: 20 jugadores aleatorios, valoración, ofertas pending/accepted/rejected, generación automática cada día (15%). |
+| 2026-08-26 | M11 | Entrenamientos: 8 tipos, schedule L-V, proceso semanal con mejora `edad×potencial×profesionalidad`, lesiones 0.8%/jugador/semana. |
+| 2026-08-26 | M12 | Finanzas: salarios semanales, taquilla por partido casa, patrocinio €15k+rep, inbox alerta si balance <0. |
+| 2026-08-26 | M13 | Rollover: campeones con premios €150k/80k/40k, retiradas y cantera 17 años, nuevo calendario 2027/28 y game_date 2027-07-10. |
+| 2026-08-26 | M14 | README + `npm run build` 479 kB y `cargo check` verdes, 12 tests, push a main. |

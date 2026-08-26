@@ -1,5 +1,10 @@
+pub mod finance_cmd;
 pub mod game;
+pub mod inbox_cmd;
 pub mod match_live;
+pub mod season_cmd;
+pub mod training_cmd;
+pub mod transfer_cmd;
 
 use std::sync::Mutex;
 use serde::Serialize;

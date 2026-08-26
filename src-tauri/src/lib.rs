@@ -2,7 +2,11 @@ mod commands;
 mod competition;
 mod db;
 mod engine;
+mod finance;
+mod season;
 mod simulation;
+mod training;
+mod transfer;
 mod world;
 
 use commands::AppState;
@@ -26,7 +30,22 @@ pub fn run() {
       commands::game::get_next_fixture,
       commands::match_live::start_live_match,
       commands::match_live::tick_live,
-      commands::match_live::get_live_snapshot
+      commands::match_live::get_live_snapshot,
+      commands::transfer_cmd::get_market,
+      commands::transfer_cmd::get_offers,
+      commands::transfer_cmd::make_offer,
+      commands::transfer_cmd::respond_offer,
+      commands::training_cmd::get_training_schedule,
+      commands::training_cmd::set_training_schedule,
+      commands::training_cmd::get_training_progress,
+      commands::training_cmd::get_training_types,
+      commands::finance_cmd::get_finance,
+      commands::finance_cmd::get_injuries,
+      commands::season_cmd::check_season_finished,
+      commands::season_cmd::rollover_season_cmd,
+      commands::inbox_cmd::get_inbox,
+      commands::inbox_cmd::mark_read,
+      commands::inbox_cmd::mark_all_read
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -39,19 +39,22 @@ pub async fn generate_calendars(pool: &SqlitePool) -> Result<(), String> {
         sqlx::query_as("SELECT id, season FROM competitions")
             .fetch_all(pool).await.map_err(|e| e.to_string())?;
 
-    let start = NaiveDate::from_ymd_opt(2026, 8, 22).unwrap();
-
     for (comp_id, season) in comps {
-        let club_rows: Vec<(i64,)> =
-            sqlx::query_as("SELECT club_id FROM league_standings WHERE competition_id=? ORDER BY club_id")
-                .bind(comp_id).fetch_all(pool).await.map_err(|e| e.to_string())?;
+        let season_year: i32 = season.split('/').next().and_then(|s| s.parse().ok()).unwrap_or(2026);
+        let start = NaiveDate::from_ymd_opt(season_year, 8, 22).unwrap_or(NaiveDate::from_ymd_opt(2026, 8, 22).unwrap());
+        let mut club_rows: Vec<(i64,)> =
+            sqlx::query_as("SELECT club_id FROM league_standings WHERE competition_id=? AND season=? ORDER BY club_id")
+                .bind(comp_id).bind(&season).fetch_all(pool).await.map_err(|e| e.to_string())?;
+        if club_rows.is_empty() {
+            club_rows = sqlx::query_as("SELECT club_id FROM league_standings WHERE competition_id=? ORDER BY club_id").bind(comp_id).fetch_all(pool).await.map_err(|e| e.to_string())?;
+            if club_rows.is_empty() { continue; }
+        }
         let team_ids: Vec<i64> = club_rows.into_iter().map(|(id,)| id).collect();
-        if team_ids.is_empty() { continue; }
 
         let rounds = build_round_robin(&team_ids);
 
-        let existing: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE competition_id=?")
-            .bind(comp_id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+        let existing: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE competition_id=? AND season=?")
+            .bind(comp_id).bind(&season).fetch_one(pool).await.map_err(|e| e.to_string())?;
         if existing.0 > 0 { continue; }
 
         for (idx, round) in rounds.iter().enumerate() {
