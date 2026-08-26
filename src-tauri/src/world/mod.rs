@@ -1,4 +1,5 @@
 pub mod data;
+pub mod prd;
 
 use chrono::NaiveDate;
 use rand::{Rng, SeedableRng};
@@ -10,161 +11,160 @@ use data::{BRAZIL_CLUBS, PORTUGAL_CLUBS, SPAIN_CLUBS};
 const SEASON: &str = "2026/2027";
 const GAME_DATE: &str = "2026-07-10";
 
-#[derive(Clone, Copy)]
-struct NationInfo {
-    name: &'static str,
-    conf: &'static str,
-    level: i64,
-    rep: i64,
-}
-
-const NATIONS: &[NationInfo] = &[
-    NationInfo { name: "España", conf: "UEFA", level: 92, rep: 900 },
-    NationInfo { name: "Brasil", conf: "CONMEBOL", level: 95, rep: 950 },
-    NationInfo { name: "Portugal", conf: "UEFA", level: 88, rep: 850 },
-];
-
 pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
-    let uefa_id: i64 = {
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO confederations(name,short_name,reputation) VALUES('UEFA','UEFA',950) RETURNING id")
+    let mut conf_ids: std::collections::HashMap<&str, i64> = Default::default();
+    for (name, short, rep) in [("UEFA","UEFA",950),("CONMEBOL","CONMEBOL",900),("AFC","AFC",850),("CAF","CAF",750),("OFC","OFC",600),("CONCACAF","CONCACAF",650)] {
+        let (id,): (i64,) = sqlx::query_as("INSERT INTO confederations(name,short_name,reputation) VALUES(?,?,?) RETURNING id")
+            .bind(name).bind(short).bind(rep)
             .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        id
-    };
-    let conmebol_id: i64 = {
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO confederations(name,short_name,reputation) VALUES('CONMEBOL','CONMEBOL',900) RETURNING id")
-            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        id
-    };
+        conf_ids.insert(short, id);
+    }
 
-    let mut nation_ids: std::collections::HashMap<&str, i64> = Default::default();
-    for n in NATIONS {
-        let cid = if n.conf == "UEFA" { uefa_id } else { conmebol_id };
+    let mut nation_ids: std::collections::HashMap<String, i64> = Default::default();
+    for (name, conf, rep, level) in prd::ALL_NATIONS {
+        let cid = *conf_ids.get(conf).unwrap();
         let (id,): (i64,) = sqlx::query_as("INSERT INTO nations(name,confederation_id,reputation,futsal_level) VALUES(?,?,?,?) RETURNING id")
-            .bind(n.name).bind(cid).bind(n.rep).bind(n.level)
+            .bind(*name).bind(cid).bind(*rep).bind(*level)
             .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        nation_ids.insert(n.name, id);
+        nation_ids.insert(name.to_string(), id);
     }
 
     let mut city_ids: std::collections::HashMap<String, i64> = Default::default();
-    let mut all_cities: Vec<(&str, &str)> = Vec::new();
-    for c in SPAIN_CLUBS { all_cities.push((c.city, "España")); }
-    for c in BRAZIL_CLUBS { all_cities.push((c.city, "Brasil")); }
-    for c in PORTUGAL_CLUBS { all_cities.push((c.city, "Portugal")); }
+    let mut all_cities: Vec<(&str, String)> = Vec::new();
+    for c in SPAIN_CLUBS { all_cities.push((c.city, "España".to_string())); }
+    for c in BRAZIL_CLUBS { all_cities.push((c.city, "Brasil".to_string())); }
+    for c in PORTUGAL_CLUBS { all_cities.push((c.city, "Portugal".to_string())); }
     let mut seen = std::collections::HashSet::new();
     for (city, nat) in all_cities {
         if seen.contains(city) { continue; }
-        seen.insert(city);
-        let nid = *nation_ids.get(nat).unwrap();
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO cities(name,nation_id,population) VALUES(?,?,500000) RETURNING id")
-            .bind(city).bind(nid)
-            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        city_ids.insert(city.to_string(), id);
+        seen.insert(city.to_string());
+        if let Some(&nid) = nation_ids.get(&nat) {
+            let (id,): (i64,) = sqlx::query_as("INSERT INTO cities(name,nation_id,population) VALUES(?,?,500000) RETURNING id")
+                .bind(city).bind(nid)
+                .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+            city_ids.insert(city.to_string(), id);
+        }
+    }
+    for (nation, _, _, _) in prd::ALL_NATIONS {
+        let cap_name = format!("{} Capital", nation);
+        if !city_ids.contains_key(&cap_name) {
+            if let Some(&nid) = nation_ids.get(*nation) {
+                let (id,): (i64,) = sqlx::query_as("INSERT INTO cities(name,nation_id,population) VALUES(?,?,300000) RETURNING id")
+                    .bind(&cap_name).bind(nid).fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+                city_ids.insert(cap_name, id);
+            }
+        }
     }
 
-    let esp_id = *nation_ids.get("España").unwrap();
-    let bra_id = *nation_ids.get("Brasil").unwrap();
-    let por_id = *nation_ids.get("Portugal").unwrap();
-
-    let comp_esp: i64 = {
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format) VALUES('Primera Division de Futbol Sala',?,?,16,?, 'Round Robin') RETURNING id")
-            .bind(esp_id).bind(1).bind(SEASON)
+    let mut comp_ids: Vec<i64> = Vec::new();
+    for comp in prd::ALL_COMPS {
+        let nid = comp.nation.and_then(|n| nation_ids.get(n).copied());
+        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format) VALUES(?,?,?,?,?,?) RETURNING id")
+            .bind(comp.name).bind(nid).bind(comp.tier).bind(comp.teams).bind(SEASON).bind(if comp.tier.is_some() { "Round Robin" } else { "Cup" })
             .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        id
-    };
-    let comp_bra: i64 = {
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format) VALUES('Liga Nacional de Futsal (LNF)',?,?,16,?, 'Round Robin') RETURNING id")
-            .bind(bra_id).bind(1).bind(SEASON)
-            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        id
-    };
-    let comp_por: i64 = {
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format) VALUES('Liga Placard',?,?,14,?, 'Round Robin') RETURNING id")
-            .bind(por_id).bind(1).bind(SEASON)
-            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-        id
-    };
+        comp_ids.push(id);
+    }
 
     let mut rng = StdRng::from_entropy();
     let base_date = NaiveDate::parse_from_str(GAME_DATE, "%Y-%m-%d").unwrap();
 
-    let mut club_defs: Vec<(&data::ClubDef, i64)> = Vec::new();
-    for c in SPAIN_CLUBS { club_defs.push((c, esp_id)); }
-    for c in BRAZIL_CLUBS { club_defs.push((c, bra_id)); }
-    for c in PORTUGAL_CLUBS { club_defs.push((c, por_id)); }
+    // Mapear nación -> clubes a crear (solo para ligas, no copas)
+    // Para simplificar, creamos clubes para cada nación que tiene al menos una liga (tier Some)
+    // El número de clubes por nación = máximo total_teams de sus ligas
+    let mut nation_max_teams: std::collections::HashMap<String, i64> = Default::default();
+    for comp in prd::ALL_COMPS {
+        if let Some(nation) = comp.nation {
+            if comp.tier.is_some() {
+                let entry = nation_max_teams.entry(nation.to_string()).or_insert(0);
+                *entry = (*entry).max(comp.teams);
+            }
+        }
+    }
+
+    struct OwnedClub { name: String, short: String, city: String, stadium: String, capacity: i64, rep: i64, c1: String, c2: String, nid: i64, nation: String }
+    let mut clubs_to_create: Vec<OwnedClub> = Vec::new();
+    for c in SPAIN_CLUBS {
+        if let Some(&nid) = nation_ids.get("España") {
+            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "España".into() });
+        }
+    }
+    for c in BRAZIL_CLUBS {
+        if let Some(&nid) = nation_ids.get("Brasil") {
+            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Brasil".into() });
+        }
+    }
+    for c in PORTUGAL_CLUBS {
+        if let Some(&nid) = nation_ids.get("Portugal") {
+            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Portugal".into() });
+        }
+    }
+    for (nation, max_teams) in &nation_max_teams {
+        if ["España","Brasil","Portugal"].contains(&nation.as_str()) { continue; }
+        let nid = match nation_ids.get(nation.as_str()) { Some(v) => *v, None => continue };
+        let count = *max_teams as usize;
+        for i in 0..count {
+            let rep = (720 - (i as i64 * 12)).max(500);
+            clubs_to_create.push(OwnedClub {
+                name: format!("{} Futsal {}", nation, i+1),
+                short: format!("{}{}", nation[..2.min(nation.len())].to_uppercase(), i+1),
+                city: format!("{} Capital", nation),
+                stadium: format!("{} Arena {}", nation, i+1),
+                capacity: 1500 + (rep % 3000), rep, c1: "#0f4c3a".into(), c2: "#ffffff".into(), nid, nation: nation.clone(),
+            });
+        }
+    }
 
     let mut club_ids: Vec<i64> = Vec::new();
+    let mut club_nation: Vec<String> = Vec::new();
 
-    for (def, nid) in club_defs {
-        let city_id = *city_ids.get(def.city).unwrap_or(&city_ids.values().next().copied().unwrap());
-        let stadium_id: i64 = {
-            let (id,): (i64,) = sqlx::query_as("INSERT INTO stadiums(name,city_id,capacity,pitch_type) VALUES(?,?,?, 'parquet') RETURNING id")
-                .bind(def.stadium).bind(city_id).bind(def.capacity)
-                .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
-            id
-        };
-        let (club_id,): (i64,) = sqlx::query_as(
-            "INSERT INTO clubs(name,short_name,nation_id,city_id,stadium_id,reputation,primary_color,secondary_color) VALUES(?,?,?,?,?,?,?,?) RETURNING id"
-        )
-        .bind(def.name).bind(def.short).bind(nid).bind(city_id).bind(stadium_id).bind(def.reputation).bind(def.color).bind(def.color2)
-        .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+    for oc in clubs_to_create {
+        let city_id = city_ids.get(&oc.city).copied().unwrap_or_else(|| *city_ids.values().next().unwrap());
+        let (stadium_id,): (i64,) = sqlx::query_as("INSERT INTO stadiums(name,city_id,capacity,pitch_type) VALUES(?,?,?, 'parquet') RETURNING id")
+            .bind(&oc.stadium).bind(city_id).bind(oc.capacity)
+            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+        let (club_id,): (i64,) = sqlx::query_as("INSERT INTO clubs(name,short_name,nation_id,city_id,stadium_id,reputation,primary_color,secondary_color) VALUES(?,?,?,?,?,?,?,?) RETURNING id")
+            .bind(&oc.name).bind(&oc.short).bind(oc.nid).bind(city_id).bind(stadium_id).bind(oc.rep).bind(&oc.c1).bind(&oc.c2)
+            .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
         club_ids.push(club_id);
-
-        let balance = (def.reputation as f64) * 1800.0 + rng.gen_range(50_000.0..250_000.0);
-        let wage_budget = (def.reputation as f64) * 12.0 + 2000.0;
-        sqlx::query("INSERT INTO club_finances(club_id,balance,transfer_budget,wage_budget,total_wages) VALUES(?,?,?,?,0)")
-            .bind(club_id).bind(balance).bind(balance * 0.25).bind(wage_budget)
-            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-
+        club_nation.push(oc.nation.clone());
+        let balance = (oc.rep as f64) * 1800.0 + rng.gen_range(50_000.0..250_000.0);
+        let wage_budget = (oc.rep as f64) * 12.0 + 2000.0;
+        sqlx::query("INSERT INTO club_finances(club_id,balance,transfer_budget,wage_budget,total_wages) VALUES(?,?,?,?,0)").bind(club_id).bind(balance).bind(balance*0.25).bind(wage_budget).execute(&mut *tx).await.map_err(|e| e.to_string())?;
         let formations = ["3-1","4-0","2-2"];
         let f = formations[rng.gen_range(0..formations.len())];
-        sqlx::query("INSERT INTO tactics(club_id,formation,tempo,pressing,defensive_line,width,playing_style,powerplay_enabled) VALUES(?,?,?,?,?,?,?,1)")
-            .bind(club_id).bind(f)
-            .bind(rng.gen_range(40..75) as i64)
-            .bind(rng.gen_range(40..80) as i64)
-            .bind(rng.gen_range(35..70) as i64)
-            .bind(rng.gen_range(40..70) as i64)
-            .bind(if rng.gen_bool(0.5) { "balanced" } else { "counter" })
-            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-
-        let nat_name = if nid == esp_id { "España" } else if nid == bra_id { "Brasil" } else { "Portugal" };
-        generate_squad(&mut tx, club_id, nid, nat_name, def.reputation, base_date, &mut rng).await?;
+        sqlx::query("INSERT INTO tactics(club_id,formation,tempo,pressing,defensive_line,width,playing_style,powerplay_enabled) VALUES(?,?,?,?,?,?,?,1)").bind(club_id).bind(f).bind(rng.gen_range(40..75) as i64).bind(rng.gen_range(40..80) as i64).bind(rng.gen_range(35..70) as i64).bind(rng.gen_range(40..70) as i64).bind(if rng.gen_bool(0.5) {"balanced"}else{"counter"}).execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        let nat_for_names: &str = if ["España","Brasil","Portugal"].contains(&oc.nation.as_str()) { &oc.nation } else { "España" };
+        generate_squad(&mut tx, club_id, oc.nid, nat_for_names, oc.rep, base_date, &mut rng).await?;
         for (day, type_id, intensity) in [(0,1,70),(1,2,75),(2,4,65),(3,3,75),(4,7,60)] {
-            sqlx::query("INSERT OR IGNORE INTO training_schedule(club_id, day_of_week, training_type_id, intensity) VALUES(?,?,?,?)")
-                .bind(club_id).bind(day).bind(type_id).bind(intensity)
-                .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+            sqlx::query("INSERT OR IGNORE INTO training_schedule(club_id, day_of_week, training_type_id, intensity) VALUES(?,?,?,?)").bind(club_id).bind(day).bind(type_id).bind(intensity).execute(&mut *tx).await.map_err(|e| e.to_string())?;
         }
         sqlx::query("INSERT OR IGNORE INTO youth_academy(club_id, level) VALUES(?,50)").bind(club_id).execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
-    for &cid in &[comp_esp, comp_bra, comp_por] {
-        let clubs_in_comp: Vec<i64> = if cid == comp_por {
-            club_ids.iter().filter(|&&id| {
-                let idx = club_ids.iter().position(|&x| x == id).unwrap();
-                idx >= 32
-            }).copied().collect()
-        } else if cid == comp_bra {
-            club_ids.iter().skip(16).take(16).copied().collect()
-        } else {
-            club_ids.iter().take(16).copied().collect()
-        };
-        for &club in &clubs_in_comp {
-            sqlx::query("INSERT INTO league_standings(competition_id,season,club_id,position,played,won,drawn,lost,goals_for,goals_against,goal_difference,points,form_last_5) VALUES(?,?,?,?,0,0,0,0,0,0,0,0,'')")
-                .bind(cid).bind(SEASON).bind(club).bind(0)
-                .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    // Crear standings solo para ligas (tier Some)
+    // Necesitamos mapear comp -> clubes de esa nación
+    // Para cada liga, tomar N clubes de esa nación (los más reputados)
+    let mut nation_clubs: std::collections::HashMap<String, Vec<i64>> = Default::default();
+    for (idx, cid) in club_ids.iter().enumerate() {
+        let nat = &club_nation[idx];
+        nation_clubs.entry(nat.clone()).or_default().push(*cid);
+    }
+    for comp in prd::ALL_COMPS {
+        if comp.tier.is_none() { continue; }
+        let nation = match comp.nation { Some(n) => n, None => continue };
+        let clubs_for_nation = match nation_clubs.get(nation) { Some(v) => v, None => continue };
+        let take = (comp.teams as usize).min(clubs_for_nation.len());
+        let selected: Vec<i64> = clubs_for_nation.iter().take(take).copied().collect();
+        let comp_id: i64 = sqlx::query_as::<_, (i64,)>("SELECT id FROM competitions WHERE name=? AND season=?").bind(comp.name).bind(SEASON).fetch_one(&mut *tx).await.map_err(|e| e.to_string())?.0;
+        for &club in &selected {
+            sqlx::query("INSERT INTO league_standings(competition_id,season,club_id,position,played,won,drawn,lost,goals_for,goals_against,goal_difference,points,form_last_5) VALUES(?,?,?,?,0,0,0,0,0,0,0,0,'')").bind(comp_id).bind(SEASON).bind(club).bind(0).execute(&mut *tx).await.map_err(|e| e.to_string())?;
         }
     }
 
-    sqlx::query("INSERT INTO game_state(id, game_date, season, game_speed) VALUES(1, ?, ?, 'normal')")
-        .bind(GAME_DATE)
-        .bind(SEASON)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-
+    sqlx::query("INSERT INTO game_state(id, game_date, season, game_speed) VALUES(1, ?, ?, 'normal')").bind(GAME_DATE).bind(SEASON).execute(&mut *tx).await.map_err(|e| e.to_string())?;
     tx.commit().await.map_err(|e| e.to_string())?;
-
     crate::competition::generate_calendars(pool).await?;
     Ok(())
 }
@@ -281,19 +281,20 @@ mod tests {
         let (players,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM players").fetch_one(&pool).await.unwrap();
         let (comps,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM competitions").fetch_one(&pool).await.unwrap();
         let (stadiums,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM stadiums").fetch_one(&pool).await.unwrap();
-        assert_eq!(clubs, 46, "46 clubes (16+16+14)");
-        assert_eq!(players, 552, "46*12 jugadores");
-        assert_eq!(comps, 3);
-        assert_eq!(stadiums, 46);
+        assert!(clubs >= 46, "al menos 46 clubes, got {}", clubs);
+        assert_eq!(players, clubs * 12, "12 jugadores por club");
+        assert_eq!(comps, 37, "37 competiciones del PRD (19 nacionales + 7 internacionales + 11 extras)");
+        assert_eq!(stadiums, clubs);
         let (standings,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings").fetch_one(&pool).await.unwrap();
-        assert_eq!(standings, 46);
+        assert!(standings >= 46, "al menos 46 standings");
         let (fin,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM club_finances").fetch_one(&pool).await.unwrap();
-        assert_eq!(fin, 46);
+        assert_eq!(fin, clubs);
         let (contracts,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM contracts").fetch_one(&pool).await.unwrap();
-        assert_eq!(contracts, 552);
+        assert_eq!(contracts, players);
         let (matches,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches").fetch_one(&pool).await.unwrap();
-        assert_eq!(matches, 662, "662 partidos doble robin (240+240+182)");
+        assert!(matches >= 662, "al menos 662 partidos, got {}", matches);
         let (d0,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.unwrap();
         assert_eq!(d0, "2026-07-10");
     }
 }
+

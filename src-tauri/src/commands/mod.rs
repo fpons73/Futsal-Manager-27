@@ -1,3 +1,4 @@
+pub mod editor_cmd;
 pub mod finance_cmd;
 pub mod game;
 pub mod inbox_cmd;

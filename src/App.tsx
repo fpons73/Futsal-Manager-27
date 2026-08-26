@@ -11,6 +11,7 @@ import MarketView from "./components/screens/MarketView";
 import InboxView from "./components/screens/InboxView";
 import TrainingView from "./components/screens/TrainingView";
 import FinanceView from "./components/screens/FinanceView";
+import EditorView from "./components/screens/EditorView";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { screen, setScreen, gameState, userClubId } = useStore();
@@ -37,6 +38,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     { id: "training", label: "Entreno" },
     { id: "finance", label: "Finanzas" },
     { id: "inbox", label: "Buzón", badge: unread },
+    { id: "editor", label: "Editor" },
   ];
 
   return (
@@ -65,6 +67,20 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { screen } = useStore();
+  // Editor accesible incluso sin partida
+  if ((screen as string) === "editor") {
+    return (
+      <div className="min-h-screen bg-fm-bg">
+        <div className="sticky top-0 z-10 border-b border-fm-border bg-fm-panel/95 backdrop-blur">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+            <span className="text-sm font-black"><span className="text-fm-accent">FM</span>27 · Editor</span>
+            <button onClick={()=>useStore.getState().setScreen("newgame")} className="rounded-lg border border-fm-border px-3 py-1.5 text-sm">← Volver</button>
+          </div>
+        </div>
+        <EditorView />
+      </div>
+    );
+  }
   return (
     <Shell>
       {screen === "newgame" && <NewGame />}
@@ -77,6 +93,7 @@ export default function App() {
       {screen === "inbox" && <InboxView />}
       {screen === "training" && <TrainingView />}
       {screen === "finance" && <FinanceView />}
+      {(screen as string) === "editor" && <EditorView />}
     </Shell>
   );
 }

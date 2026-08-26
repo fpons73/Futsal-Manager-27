@@ -10,7 +10,7 @@ Simulador de gestión de fútbol sala para PC, inspirado en Football Manager per
 
 | Sistema | Estado |
 |---|---|
-| Mundo: 3 ligas (España 16, Brasil 16, Portugal 14) · 46 clubes · 552 jugadores · atributos ponderados por posición | ✅ |
+| Mundo: 37 competiciones PRD · 26 naciones (6 confederaciones) · 222 clubes · +2600 jugadores · atributos ponderados por posición | ✅ |
 | Calendario round-robin doble (662 partidos) | ✅ |
 | Motor 2D: 40×20 m, 2×20', faltas 6ª→doble penalti, powerplay, cambios por fatiga | ✅ |
 | Simulación multi-liga headless + avance día/semana | ✅ |
@@ -67,7 +67,7 @@ cargo test -- --nocapture --test-threads=1
 
 ## Cómo jugar (v1.0)
 
-1. **Nueva partida** → elige uno de los 46 clubes (ES/BR/PT).
+1. **Nueva partida** → elige uno de los 222 clubes (ES/BR/PT + resto del mundo), o abre el **Editor** para crear/editar/eliminar países, clubes, jugadores y competiciones.
 2. **Dashboard** → fecha, próximo partido, clasificación, *Avanzar 1 día / +7 días*, alerta fin de temporada → *Rollover*.
 3. **Plantilla** → 12 jugadores con CA/PA, salario, condición, atributos.
 4. **Clasificación / Calendario** → tablas y jornadas (30/30/26).
@@ -77,7 +77,7 @@ cargo test -- --nocapture --test-threads=1
 8. **Finanzas** → balance, presupuestos, taquilla y patrocinio semanal.
 9. **Buzón** → mensajes board/staff (fichajes, lesiones, financiera, fin de temporada).
 
-La simulación headless resuelve jornadas de las 3 ligas al avanzar: **662 partidos/temporada**.
+La simulación headless resuelve jornadas de todas las ligas al avanzar: **+660 partidos/temporada**.
 
 ---
 

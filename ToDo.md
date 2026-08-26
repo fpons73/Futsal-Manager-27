@@ -23,6 +23,8 @@
 - [x] M12: Finanzas del club — balance, presupuestos, taquilla (65-90% aforo × €12), patrocinio semanal, alerta balance negativo
 - [x] M13: Fin de temporada y rollover — premios top3, retiradas 33-36 años, regeneración juvenil 17 años, nuevos contratos, calendario siguiente temporada
 - [x] M14: Pulido — `cargo check`/`tsc`/`vite build` limpios, 12 tests OK, README, plan/ToDo al día
+- [x] M15: Mundo PRD completo — 37 competiciones, 26 naciones, 6 confederaciones, 222 clubes, +2600 jugadores (names ES/BR/PT + genéricos por país), tests actualizados
+- [x] M16: Editor BD — CRUD países/clubes/jugadores/competiciones (backend `editor/mod.rs` + `editor_cmd.rs`, frontend `EditorView`), auto-init `editor_init` (auto-seed), navegación "Editor"
 
 ---
 
@@ -44,4 +46,6 @@
 | 2026-08-26 | M11 | Entrenamientos: 8 tipos, schedule L-V, proceso semanal con mejora `edad×potencial×profesionalidad`, lesiones 0.8%/jugador/semana. |
 | 2026-08-26 | M12 | Finanzas: salarios semanales, taquilla por partido casa, patrocinio €15k+rep, inbox alerta si balance <0. |
 | 2026-08-26 | M13 | Rollover: campeones con premios €150k/80k/40k, retiradas y cantera 17 años, nuevo calendario 2027/28 y game_date 2027-07-10. |
-| 2026-08-26 | M14 | README + `npm run build` 479 kB y `cargo check` verdes, 12 tests, push a main. |
+| 2026-08-26 | M14 | README + `pnpm run build` 479 kB y `cargo check` verdes, 12 tests, push a main. |
+| 2026-08-26 | M15 | Mundo PRD: 37 competiciones (19 ligas + 7 internacionales + 11 extras), 26 naciones (6 confed), 222 clubes, +2600 jugadores. Fix crash memoria: referencias dangling por `unsafe transmute` en `owned_defs`. |
+| 2026-08-26 | M16 | Editor: CRUD naciones/clubes/jugadores/competiciones, `editor_init` auto-seed, pestaña Editor en nav, botón NewGame. |

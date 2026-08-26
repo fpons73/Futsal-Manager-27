@@ -49,11 +49,12 @@ export default function NewGame() {
     <div className="mx-auto max-w-6xl p-6">
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-black tracking-tight"><span className="text-fm-accent">FUTSAL</span> MANAGER 27</h1>
-        <p className="mt-2 text-fm-dim">Elige tu club para comenzar la temporada 2026/27</p>
+        <p className="mt-2 text-fm-dim">Elige tu club para comenzar la temporada 2026/27 — o abre el Editor para personalizar la BD</p>
         <div className="mt-4 flex justify-center gap-2">
           {(["all","España","Brasil","Portugal"] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter===f ? "bg-fm-accent text-black" : "bg-fm-panel border border-fm-border text-fm-dim hover:text-white"}`}>{f==="all" ? "Todas" : f}</button>
           ))}
+          <button onClick={()=>setScreen("editor")} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/20">Editor BD</button>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 mod commands;
 mod competition;
 mod db;
+mod editor;
 mod engine;
 mod finance;
 mod season;
@@ -45,7 +46,24 @@ pub fn run() {
       commands::season_cmd::rollover_season_cmd,
       commands::inbox_cmd::get_inbox,
       commands::inbox_cmd::mark_read,
-      commands::inbox_cmd::mark_all_read
+      commands::inbox_cmd::mark_all_read,
+      commands::editor_cmd::editor_init,
+      commands::editor_cmd::editor_list_nations,
+      commands::editor_cmd::editor_list_clubs,
+      commands::editor_cmd::editor_list_players,
+      commands::editor_cmd::editor_list_competitions,
+      commands::editor_cmd::editor_list_confederations,
+      commands::editor_cmd::editor_list_cities,
+      commands::editor_cmd::editor_create_nation,
+      commands::editor_cmd::editor_update_nation,
+      commands::editor_cmd::editor_delete_nation,
+      commands::editor_cmd::editor_create_club,
+      commands::editor_cmd::editor_delete_club,
+      commands::editor_cmd::editor_create_player,
+      commands::editor_cmd::editor_delete_player,
+      commands::editor_cmd::editor_create_competition,
+      commands::editor_cmd::editor_delete_competition,
+      commands::editor_cmd::editor_get_squad_count
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

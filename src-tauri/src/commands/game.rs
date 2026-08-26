@@ -241,9 +241,14 @@ struct SquadRaw {
 #[tauri::command]
 pub async fn get_squad(state: State<'_, AppState>, club_id: i64) -> Result<Vec<PlayerRow>, String> {
     let pool = get_pool(&state).await?;
-    let rows = sqlx::query_as::<_, SquadRaw>(
+    let mut rows = sqlx::query_as::<_, SquadRaw>(
         "SELECT p.id as id, p.first_name as first_name, p.last_name as last_name, p.common_name as common_name, p.date_of_birth as date_of_birth, n.name as nation, COALESCE(pp2.pos, 'UNI') as position, ps.current_ability as ca, ps.potential_ability as pa, c.wage_weekly as wage, ps.condition_val as condition, ps.morale as morale, pa.passing as passing, pa.finishing as finishing, pa.dribbling as dribbling, pa.tackling as tackling, pa.vision as vision, pa.anticipation as anticipation, pa.positioning as positioning, pa.stamina as stamina, pa.acceleration as acceleration, pa.pace as pace, pa.composure as composure, pa.technique as technique, pa.reflexes as reflexes FROM players p JOIN contracts c ON c.player_id=p.id AND c.club_id=? AND c.is_active=1 JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id JOIN player_attributes pa ON pa.player_id=p.id LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp2 ON pp2.player_id=p.id ORDER BY ps.current_ability DESC"
     ).bind(club_id).fetch_all(&pool).await.map_err(|e| e.to_string())?;
+    if rows.is_empty() {
+        rows = sqlx::query_as::<_, SquadRaw>(
+            "SELECT p.id as id, p.first_name as first_name, p.last_name as last_name, p.common_name as common_name, p.date_of_birth as date_of_birth, n.name as nation, COALESCE(pp2.pos, 'UNI') as position, ps.current_ability as ca, ps.potential_ability as pa, COALESCE(c.wage_weekly,500) as wage, ps.condition_val as condition, ps.morale as morale, pa.passing as passing, pa.finishing as finishing, pa.dribbling as dribbling, pa.tackling as tackling, pa.vision as vision, pa.anticipation as anticipation, pa.positioning as positioning, pa.stamina as stamina, pa.acceleration as acceleration, pa.pace as pace, pa.composure as composure, pa.technique as technique, pa.reflexes as reflexes FROM players p JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id JOIN player_attributes pa ON pa.player_id=p.id LEFT JOIN contracts c ON c.player_id=p.id AND c.is_active=1 LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp2 ON pp2.player_id=p.id WHERE p.id IN (SELECT player_id FROM contracts WHERE club_id=? LIMIT 12) ORDER BY ps.current_ability DESC"
+        ).bind(club_id).fetch_all(&pool).await.map_err(|e| e.to_string())?;
+    }
 
     let today: chrono::NaiveDate = sqlx::query_as::<_, (String,)>("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.map_err(|e| e.to_string()).and_then(|(d,)| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").map_err(|e| e.to_string()))?;
 

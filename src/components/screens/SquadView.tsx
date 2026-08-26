@@ -3,18 +3,24 @@ import { api, type PlayerRow } from "../../api";
 import { useStore } from "../../store";
 
 export default function SquadView() {
-  const { userClubId } = useStore();
+  const { userClubId, clubs } = useStore();
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userClubId) return;
+    if (!userClubId) { setLoading(false); setError("No hay club seleccionado"); return; }
     setLoading(true);
-    api.getSquad(userClubId).then(setPlayers).finally(()=>setLoading(false));
+    setError(null);
+    api.getSquad(userClubId).then((p)=>{
+      setPlayers(p);
+      if (p.length===0) setError(`Club ${userClubId} (${clubs.find(c=>c.id===userClubId)?.name ?? "?"}) sin jugadores — verifica DB`);
+    }).catch((e)=> setError(String(e))).finally(()=>setLoading(false));
   }, [userClubId]);
 
   if (loading) return <div className="p-8 text-center text-fm-dim">Cargando plantilla…</div>;
-  if (!players.length) return <div className="p-8 text-center text-fm-dim">Sin jugadores.</div>;
+  if (error) return <div className="p-8 text-center"><div className="text-amber-400">{error}</div><button onClick={()=> userClubId && api.getSquad(userClubId).then(setPlayers)} className="mt-2 rounded bg-fm-accent px-3 py-1 text-sm font-bold text-black">Reintentar</button></div>;
+  if (!players.length) return <div className="p-8 text-center text-fm-dim">Sin jugadores. (Club {userClubId})</div>;
 
   return (
     <div className="mx-auto max-w-6xl p-6">
