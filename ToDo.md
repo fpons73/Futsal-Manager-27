@@ -9,7 +9,7 @@
 
 - [x] Documentos base (PRD V2 + Prototipo Técnico)
 - [x] plan.md creado
-- [ ] M1: Scaffold Tauri v2 + React + TS compilando
+- [x] M1: Scaffold Tauri v2 + React + TS compilando — `npm run build` + `cargo check` limpios
 - [ ] M2: Base de datos SQLite (migraciones + pool)
 - [ ] M3: Generación procedural del mundo (3 ligas)
 - [ ] M4: Competiciones y calendario round-robin
@@ -31,3 +31,4 @@
 | Fecha | Hito | Notas |
 |---|---|---|
 | 2026-08-26 | Docs | Plan de desarrollo definido y aprobado |
+| 2026-08-26 | M1 | Scaffold Tauri v2 + React + TS + Tailwind + Konva/Zustand. `cargo check` limpio. |
