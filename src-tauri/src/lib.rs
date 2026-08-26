@@ -59,10 +59,13 @@ pub fn run() {
       commands::editor_cmd::editor_delete_nation,
       commands::editor_cmd::editor_create_club,
       commands::editor_cmd::editor_delete_club,
+      commands::editor_cmd::editor_update_club,
       commands::editor_cmd::editor_create_player,
       commands::editor_cmd::editor_delete_player,
+      commands::editor_cmd::editor_update_player,
       commands::editor_cmd::editor_create_competition,
       commands::editor_cmd::editor_delete_competition,
+      commands::editor_cmd::editor_update_competition,
       commands::editor_cmd::editor_get_squad_count
     ])
     .run(tauri::generate_context!())

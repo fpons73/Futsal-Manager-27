@@ -5,7 +5,7 @@ import { useStore } from "../../store";
 export default function NewGame() {
   const { setScreen, setGameState, setClubs, setCompetitions, setSelectedComp, setUserClub } = useStore();
   const [clubs, setLocalClubs] = useState<ClubRow[]>([]);
-  const [filter, setFilter] = useState<"all" | "España" | "Brasil" | "Portugal">("all");
+  const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
 
@@ -40,19 +40,21 @@ export default function NewGame() {
 
   if (loading) return <div className="p-12 text-center text-fm-dim">Generando mundo…</div>;
 
+  // Naciones dinámicas según los clubes realmente existentes
+  const nations = Array.from(new Set(clubs.map((c) => c.nation)));
   const filtered = filter === "all" ? clubs : clubs.filter((c) => c.nation === filter);
-
-  const groups: Record<string, ClubRow[]> = { "España": [], "Brasil": [], "Portugal": [] };
-  filtered.forEach((c) => { if (groups[c.nation]) groups[c.nation].push(c); });
+  const groups: Record<string, ClubRow[]> = {};
+  filtered.forEach((c) => { (groups[c.nation] ??= []).push(c); });
 
   return (
     <div className="mx-auto max-w-6xl p-6">
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-black tracking-tight"><span className="text-fm-accent">FUTSAL</span> MANAGER 27</h1>
         <p className="mt-2 text-fm-dim">Elige tu club para comenzar la temporada 2026/27 — o abre el Editor para personalizar la BD</p>
-        <div className="mt-4 flex justify-center gap-2">
-          {(["all","España","Brasil","Portugal"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter===f ? "bg-fm-accent text-black" : "bg-fm-panel border border-fm-border text-fm-dim hover:text-white"}`}>{f==="all" ? "Todas" : f}</button>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <button onClick={() => setFilter("all")} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter==="all" ? "bg-fm-accent text-black" : "bg-fm-panel border border-fm-border text-fm-dim hover:text-white"}`}>Todas</button>
+          {nations.map((n) => (
+            <button key={n} onClick={() => setFilter(n)} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter===n ? "bg-fm-accent text-black" : "bg-fm-panel border border-fm-border text-fm-dim hover:text-white"}`}>{n}</button>
           ))}
           <button onClick={()=>setScreen("editor")} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/20">Editor BD</button>
         </div>
@@ -75,6 +77,7 @@ export default function NewGame() {
           </div>
         </div>
       ))}
+      {filtered.length === 0 && <div className="p-12 text-center text-fm-dim">Sin clubes en "{filter}". Usa el Editor para añadirlos.</div>}
     </div>
   );
 }

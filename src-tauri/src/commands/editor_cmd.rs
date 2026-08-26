@@ -88,6 +88,21 @@ pub async fn editor_delete_club(state: State<'_, AppState>, id: i64) -> Result<(
     crate::editor::delete_club(&pool, id).await
 }
 #[tauri::command]
+pub async fn editor_update_club(state: State<'_, AppState>, id: i64, name: String, short_name: String, nation_id: i64, city: String, stadium: String, capacity: i64, reputation: i64, c1: String, c2: String) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_club(&pool, id, name, short_name, nation_id, city, stadium, capacity, reputation, c1, c2).await
+}
+#[tauri::command]
+pub async fn editor_update_player(state: State<'_, AppState>, id: i64, first: String, last: String, nation_id: i64, club_id: Option<i64>, ca: i64, pa: i64, pos: String) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_player(&pool, id, first, last, nation_id, club_id, ca, pa, pos).await
+}
+#[tauri::command]
+pub async fn editor_update_competition(state: State<'_, AppState>, id: i64, name: String, nation_id: Option<i64>, tier: Option<i64>, total_teams: i64, season: String) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_competition(&pool, id, name, nation_id, tier, total_teams, season).await
+}
+#[tauri::command]
 pub async fn editor_create_player(state: State<'_, AppState>, first: String, last: String, nation_id: i64, club_id: Option<i64>, ca: i64, pa: i64, pos: String) -> Result<i64, String> {
     let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
     crate::editor::create_player(&pool, first, last, nation_id, club_id, ca, pa, pos).await

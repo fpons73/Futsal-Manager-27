@@ -93,6 +93,49 @@ pub async fn create_club(pool: &SqlitePool, name: String, short: String, nation_
     sqlx::query("UPDATE club_finances SET total_wages=(SELECT SUM(wage_weekly) FROM contracts WHERE club_id=? AND is_active=1) WHERE club_id=?").bind(id).bind(id).execute(pool).await.ok();
     Ok(id)
 }
+pub async fn update_club(pool: &SqlitePool, id: i64, name: String, short: String, nation_id: i64, city: String, stadium: String, capacity: i64, rep: i64, c1: String, c2: String) -> Result<(), String> {
+    let city_id = if city.is_empty() { None } else {
+        let existing: Option<(i64,)> = sqlx::query_as("SELECT id FROM cities WHERE name=? AND nation_id=?").bind(&city).bind(nation_id).fetch_optional(pool).await.map_err(|e| e.to_string())?;
+        if let Some((id,)) = existing { Some(id) } else {
+            let (id,): (i64,) = sqlx::query_as("INSERT INTO cities(name, nation_id, population) VALUES(?,?,500000) RETURNING id").bind(&city).bind(nation_id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+            Some(id)
+        }
+    };
+    let cur_stadium: Option<(Option<i64>,)> = sqlx::query_as("SELECT stadium_id FROM clubs WHERE id=?").bind(id).fetch_optional(pool).await.map_err(|e| e.to_string())?;
+    let existing_stadium = cur_stadium.and_then(|(s,)| s);
+    let stadium_id = if stadium.is_empty() { existing_stadium } else {
+        if let Some(es) = existing_stadium {
+            sqlx::query("UPDATE stadiums SET name=?, capacity=? WHERE id=?").bind(&stadium).bind(capacity).bind(es).execute(pool).await.map_err(|e| e.to_string())?;
+            Some(es)
+        } else {
+            let (id,): (i64,) = sqlx::query_as("INSERT INTO stadiums(name, city_id, capacity) VALUES(?,?,?) RETURNING id").bind(&stadium).bind(city_id).bind(capacity).fetch_one(pool).await.map_err(|e| e.to_string())?;
+            Some(id)
+        }
+    };
+    sqlx::query("UPDATE clubs SET name=?, short_name=?, nation_id=?, city_id=?, stadium_id=?, reputation=?, primary_color=?, secondary_color=? WHERE id=?")
+        .bind(name).bind(short).bind(nation_id).bind(city_id).bind(stadium_id).bind(rep).bind(c1).bind(c2).bind(id)
+        .execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+pub async fn update_player(pool: &SqlitePool, id: i64, first: String, last: String, nation_id: i64, club_id: Option<i64>, ca: i64, pa: i64, pos: String) -> Result<(), String> {
+    sqlx::query("UPDATE players SET first_name=?, last_name=?, common_name=?, nation_id=? WHERE id=?").bind(&first).bind(&last).bind(format!("{} {}", first, last)).bind(nation_id).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    sqlx::query("UPDATE player_states SET current_ability=?, potential_ability=? WHERE player_id=?").bind(ca).bind(pa).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    let (por,cie,ala,piv,uni) = match pos.as_str() { "POR"=>(20,2,1,1,3), "CIE"=>(1,20,12,8,10), "ALA"=>(1,10,20,10,14), "PIV"=>(1,6,10,20,12), _=>(3,10,14,14,20) };
+    sqlx::query("UPDATE player_positions SET por_natural=?, cie_natural=?, ala_natural=?, piv_natural=?, uni_natural=? WHERE player_id=?").bind(por).bind(cie).bind(ala).bind(piv).bind(uni).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    if let Some(cid) = club_id {
+        let has: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM contracts WHERE player_id=? AND is_active=1").bind(id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+        if has.0 == 0 {
+            sqlx::query("INSERT INTO contracts(player_id,club_id,wage_weekly,start_date,end_date,is_active) VALUES(?,?,?,?,?,1)").bind(id).bind(cid).bind(ca as f64*18.0).bind("2026-07-10").bind("2029-07-10").execute(pool).await.map_err(|e| e.to_string())?;
+        } else {
+            sqlx::query("UPDATE contracts SET club_id=?, wage_weekly=? WHERE player_id=? AND is_active=1").bind(cid).bind(ca as f64*18.0).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+pub async fn update_competition(pool: &SqlitePool, id: i64, name: String, nation_id: Option<i64>, tier: Option<i64>, teams: i64, season: String) -> Result<(), String> {
+    sqlx::query("UPDATE competitions SET name=?, nation_id=?, tier=?, total_teams=?, season=? WHERE id=?").bind(name).bind(nation_id).bind(tier).bind(teams).bind(season).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
 pub async fn delete_club(pool: &SqlitePool, id: i64) -> Result<(), String> {
     let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE home_club_id=? OR away_club_id=?").bind(id).bind(id).fetch_one(pool).await.map_err(|e| e.to_string())?;
     if cnt>0 { return Err(format!("No se puede borrar: {} partidos referencian al club", cnt)); }
