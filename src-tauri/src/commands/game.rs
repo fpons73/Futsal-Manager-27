@@ -110,10 +110,38 @@ async fn get_pool(state: &State<'_, AppState>) -> Result<SqlitePool, String> {
 
 #[tauri::command]
 pub async fn new_game(state: State<'_, AppState>, user_club_id: Option<i64>) -> Result<NewGameResult, String> {
+    let existing_pool = {
+        let guard = state.pool.lock().map_err(|e| e.to_string())?;
+        guard.clone()
+    };
+    if let Some(existing) = existing_pool {
+        let cnt: i64 = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM clubs").fetch_one(&existing).await.map_err(|e| e.to_string()).map(|(c,)| c).unwrap_or(0);
+        if cnt > 0 {
+            if let Some(cid) = user_club_id {
+                sqlx::query("UPDATE game_state SET user_club_id=? WHERE id=1").bind(cid).execute(&existing).await.map_err(|e| e.to_string())?;
+            }
+            let (game_date,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
+            let (season,): (String,) = sqlx::query_as("SELECT season FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
+            let clubs: Vec<ClubRow> = sqlx::query_as("SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY c.reputation DESC").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, short_name, nation, reputation, primary_color): (i64, String, String, String, i64, String)| ClubRow { id, name, short_name, nation, reputation, primary_color }).collect();
+            let comps: Vec<CompRow> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional') FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.id").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, nation): (i64, String, String)| CompRow { id, name, nation }).collect();
+            return Ok(NewGameResult { game_date, season, clubs, competitions: comps });
+        }
+    }
+    {
+        let mut guard = state.pool.lock().map_err(|e| e.to_string())?;
+        *guard = None;
+    }
+    {
+        let mut live = state.live_match.lock().map_err(|e| e.to_string())?;
+        *live = None;
+    }
+    // Pequeña espera para que SQLite cierre ficheros en Windows
+    tokio::time::sleep(std::time::Duration::from_millis(120)).await;
     let path = crate::db::db_path();
     let _ = std::fs::remove_file(&path);
     let _ = std::fs::remove_file(path.with_extension("db-wal"));
     let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    let _ = std::fs::remove_file(path.with_extension("db-journal"));
     let pool = crate::db::init_pool(None).await.map_err(|e| e.to_string())?;
     crate::world::seed_world(&pool).await?;
     if let Some(cid) = user_club_id {
