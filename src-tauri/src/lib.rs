@@ -76,7 +76,15 @@ pub fn run() {
       commands::editor_cmd::editor_update_staff,
       commands::editor_cmd::editor_delete_staff,
       commands::editor_cmd::editor_set_coach,
-      commands::editor_cmd::editor_set_crest
+      commands::editor_cmd::editor_set_crest,
+      commands::editor_cmd::editor_list_confederations_full,
+      commands::editor_cmd::editor_update_confederation,
+      commands::editor_cmd::editor_set_confed_crest,
+      commands::editor_cmd::editor_set_nation_flag,
+      commands::editor_cmd::editor_get_player_attributes,
+      commands::editor_cmd::editor_update_player_attributes,
+      commands::editor_cmd::editor_set_player_photo,
+      commands::editor_cmd::editor_set_staff_photo
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

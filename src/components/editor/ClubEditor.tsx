@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
+import ImagePicker from "./ImagePicker";
 
 type Staff = { id: number; first_name: string; last_name: string; common_name: string; nation: string; nation_id: number; role: string; club_id: number | null; club_name: string | null; tactical: number; man_management: number; judging: number; motivating: number; working_youngsters: number; physio_level: number; wage_weekly: number };
 type Player = { id: number; first_name: string; last_name: string; common_name: string; nation: string; nation_id: number; club: string; club_id: number | null; position: string; ca: number; pa: number; age: number; foot: string };
@@ -7,13 +8,12 @@ type Player = { id: number; first_name: string; last_name: string; common_name: 
 const ROLES = ["coach","assistant","scout","physio"];
 
 export default function ClubEditor({ club, nations, onClose }: { club: any; nations: any[]; onClose: () => void }) {
-  const [crest, setCrest] = useState<string | null>(club.crest_path ?? null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [coaches, setCoaches] = useState<Staff[]>([]);
   const [coachId, setCoachId] = useState<number | null>(club.coach_id ?? null);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [squad, setSquad] = useState<Player[]>([]);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const refresh = async () => {
@@ -28,23 +28,6 @@ export default function ClubEditor({ club, nations, onClose }: { club: any; nati
     } catch (e) { setMsg(String(e)); }
   };
   useEffect(() => { refresh(); }, [club.id]);
-
-  const onCrestPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(",")[1] || "";
-      const ext = (dataUrl.match(/data:image\/(\w+)/)?.[1] || "png").toLowerCase();
-      try {
-        const path = await invoke<string>("editor_set_crest", { clubId: club.id, data: base64, ext });
-        setCrest(path);
-        setMsg("Escudo actualizado");
-      } catch (err) { setMsg(String(err)); }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const setCoach = async (id: number | null) => {
     try { await invoke("editor_set_coach", { clubId: club.id, staffId: id }); setCoachId(id); setMsg("Entrenador asignado"); refresh(); } catch (e){ setMsg(String(e)); }
@@ -85,17 +68,7 @@ export default function ClubEditor({ club, nations, onClose }: { club: any; nati
         {/* Escudo */}
         <section className="rounded-lg border border-fm-border bg-fm-bg p-3">
           <div className="mb-2 text-xs font-bold uppercase tracking-widest text-fm-dim">Escudo</div>
-          <div className="flex items-center gap-3">
-            {crest ? (
-              <img src={convertFileSrc(crest)} alt="escudo" className="h-16 w-16 rounded-lg border border-fm-border object-contain" />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-fm-border bg-fm-panel text-2xl">{club.short_name?.[0]}</div>
-            )}
-            <label className="cursor-pointer rounded-lg bg-fm-accent px-3 py-1.5 text-sm font-bold text-black">
-              Elegir escudo…
-              <input type="file" accept="image/*" className="hidden" onChange={onCrestPick} />
-            </label>
-          </div>
+          <ImagePicker command="editor_set_crest" entityId={club.id} label="Escudo" value={club.crest_path ?? null} prefix={club.short_name?.[0] ?? "🛡"} />
           {club.short_name && <div className="mt-2 text-xs text-fm-dim">Corto: {club.short_name}</div>}
         </section>
 

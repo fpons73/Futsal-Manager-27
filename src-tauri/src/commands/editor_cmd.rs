@@ -83,9 +83,9 @@ pub async fn editor_create_nation(state: State<'_, AppState>, name: String, conf
     crate::editor::create_nation(&pool, name, confederation_id, reputation, futsal_level).await
 }
 #[tauri::command]
-pub async fn editor_update_nation(state: State<'_, AppState>, id: i64, name: String, reputation: i64, futsal_level: i64) -> Result<(), String> {
+pub async fn editor_update_nation(state: State<'_, AppState>, id: i64, name: String, confederation_id: i64, reputation: i64, futsal_level: i64) -> Result<(), String> {
     let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
-    crate::editor::update_nation(&pool, id, name, reputation, futsal_level).await
+    crate::editor::update_nation(&pool, id, name, confederation_id, reputation, futsal_level).await
 }
 #[tauri::command]
 pub async fn editor_delete_nation(state: State<'_, AppState>, id: i64) -> Result<(), String> {
@@ -178,4 +178,45 @@ pub async fn editor_set_coach(state: State<'_, AppState>, club_id: i64, staff_id
 pub async fn editor_set_crest(state: State<'_, AppState>, club_id: i64, data: String, ext: String) -> Result<String, String> {
     let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
     crate::editor::set_crest(&pool, club_id, &data, &ext).await
+}
+
+#[tauri::command]
+pub async fn editor_list_confederations_full(state: State<'_, AppState>) -> Result<Vec<crate::editor::ConfederationRow>, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::list_confederations(&pool).await
+}
+#[tauri::command]
+pub async fn editor_update_confederation(state: State<'_, AppState>, id: i64, name: String, short_name: String, reputation: i64) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_confederation(&pool, id, name, short_name, reputation).await
+}
+#[tauri::command]
+pub async fn editor_set_confed_crest(state: State<'_, AppState>, confed_id: i64, data: String, ext: String) -> Result<String, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_crest_confed(&pool, confed_id, &data, &ext).await
+}
+#[tauri::command]
+pub async fn editor_set_nation_flag(state: State<'_, AppState>, nation_id: i64, data: String, ext: String) -> Result<String, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_nation_flag(&pool, nation_id, &data, &ext).await
+}
+#[tauri::command]
+pub async fn editor_get_player_attributes(state: State<'_, AppState>, player_id: i64) -> Result<crate::editor::PlayerAttributes, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::get_player_attributes(&pool, player_id).await
+}
+#[tauri::command]
+pub async fn editor_update_player_attributes(state: State<'_, AppState>, player_id: i64, attributes: crate::editor::PlayerAttributes) -> Result<(), String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::update_player_attributes(&pool, player_id, &attributes).await
+}
+#[tauri::command]
+pub async fn editor_set_player_photo(state: State<'_, AppState>, player_id: i64, data: String, ext: String) -> Result<String, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_player_photo(&pool, player_id, &data, &ext).await
+}
+#[tauri::command]
+pub async fn editor_set_staff_photo(state: State<'_, AppState>, staff_id: i64, data: String, ext: String) -> Result<String, String> {
+    let pool = state.pool.lock().map_err(|e| e.to_string())?.clone().ok_or("No hay partida")?;
+    crate::editor::set_staff_photo(&pool, staff_id, &data, &ext).await
 }

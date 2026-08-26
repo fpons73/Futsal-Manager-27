@@ -2,20 +2,50 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 #[derive(Serialize, Deserialize)]
-pub struct NationRow { pub id: i64, pub name: String, pub confederation: String, pub confederation_id: i64, pub reputation: i64, pub futsal_level: i64 }
+pub struct NationRow { pub id: i64, pub name: String, pub confederation: String, pub confederation_id: i64, pub reputation: i64, pub futsal_level: i64, pub flag_path: Option<String> }
+#[derive(Serialize, Deserialize)]
+pub struct ConfederationRow { pub id: i64, pub name: String, pub short_name: String, pub reputation: i64, pub crest_path: Option<String> }
 #[derive(Serialize, Deserialize)]
 pub struct ClubRow { pub id: i64, pub name: String, pub short_name: String, pub nation: String, pub nation_id: i64, pub city: String, pub city_id: Option<i64>, pub stadium: String, pub capacity: i64, pub reputation: i64, pub primary_color: String, pub secondary_color: String, pub crest_path: Option<String>, pub coach_id: Option<i64>, pub coach_name: Option<String>, pub staff_count: i64, pub squad_count: i64 }
 #[derive(Serialize, Deserialize)]
-pub struct PlayerRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub club: String, pub club_id: Option<i64>, pub position: String, pub ca: i64, pub pa: i64, pub age: i64, pub foot: String }
+pub struct PlayerRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub club: String, pub club_id: Option<i64>, pub position: String, pub ca: i64, pub pa: i64, pub age: i64, pub foot: String, pub photo_path: Option<String> }
 #[derive(Serialize, Deserialize)]
 pub struct CompetitionRow { pub id: i64, pub name: String, pub nation: Option<String>, pub nation_id: Option<i64>, pub tier: Option<i64>, pub total_teams: Option<i64>, pub season: String, pub format: String }
 #[derive(Serialize, Deserialize, Clone)]
-pub struct StaffRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub role: String, pub club_id: Option<i64>, pub club_name: Option<String>, pub tactical: i64, pub man_management: i64, pub judging: i64, pub motivating: i64, pub working_youngsters: i64, pub physio_level: i64, pub wage_weekly: f64 }
+pub struct StaffRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub role: String, pub club_id: Option<i64>, pub club_name: Option<String>, pub tactical: i64, pub man_management: i64, pub judging: i64, pub motivating: i64, pub working_youngsters: i64, pub physio_level: i64, pub wage_weekly: f64, pub photo_path: Option<String> }
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerAttributes {
+    pub ca: i64,
+    pub pa: i64,
+    pub position: String,
+    pub first_touch: i64, pub dribbling: i64, pub ball_control: i64, pub technique: i64,
+    pub passing: i64, pub vision: i64, pub crossing: i64, pub long_shots: i64,
+    pub finishing: i64, pub heading: i64, pub penalty_taking: i64,
+    pub tackling: i64, pub marking: i64, pub interception: i64, pub blocking: i64,
+    pub anticipation: i64, pub decisions: i64, pub positioning: i64, pub off_the_ball: i64, pub work_rate: i64,
+    pub composure: i64, pub concentration: i64, pub determination: i64, pub bravery: i64,
+    pub aggression: i64, pub leadership: i64, pub teamwork: i64, pub flair: i64,
+    pub acceleration: i64, pub pace: i64, pub agility: i64, pub balance: i64, pub stamina: i64,
+    pub strength: i64, pub jumping: i64,
+    pub reflexes: i64, pub handling: i64, pub one_on_ones: i64, pub positioning_gk: i64,
+    pub rushing_out: i64, pub throwing: i64, pub kicking: i64,
+    pub professionalism: i64, pub consistency: i64, pub important_matches: i64, pub injury_proneness: i64,
+}
 
 pub async fn list_nations(pool: &SqlitePool) -> Result<Vec<NationRow>, String> {
-    let rows = sqlx::query_as::<_, (i64, String, i64, String, i64, i64)>("SELECT n.id, n.name, n.confederation_id, c.short_name, n.reputation, n.futsal_level FROM nations n JOIN confederations c ON c.id=n.confederation_id ORDER BY n.name")
+    let rows = sqlx::query_as::<_, (i64, String, i64, String, i64, i64, Option<String>)>("SELECT n.id, n.name, n.confederation_id, c.short_name, n.reputation, n.futsal_level, n.flag_path FROM nations n JOIN confederations c ON c.id=n.confederation_id ORDER BY n.name")
         .fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, name, confederation_id, confederation, reputation, futsal_level)| NationRow { id, name, confederation, confederation_id, reputation, futsal_level }).collect())
+    Ok(rows.into_iter().map(|(id, name, confederation_id, confederation, reputation, futsal_level, flag_path)| NationRow { id, name, confederation, confederation_id, reputation, futsal_level, flag_path }).collect())
+}
+pub async fn list_confederations(pool: &SqlitePool) -> Result<Vec<ConfederationRow>, String> {
+    let rows = sqlx::query_as::<_, (i64, String, String, i64, Option<String>)>("SELECT id, name, short_name, reputation, crest_path FROM confederations ORDER BY name").fetch_all(pool).await.map_err(|e| e.to_string())?;
+    Ok(rows.into_iter().map(|(id, name, short_name, reputation, crest_path)| ConfederationRow { id, name, short_name, reputation, crest_path }).collect())
+}
+pub async fn update_confederation(pool: &SqlitePool, id: i64, name: String, short_name: String, reputation: i64) -> Result<(), String> {
+    sqlx::query("UPDATE confederations SET name=?, short_name=?, reputation=? WHERE id=?").bind(name).bind(short_name).bind(reputation).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(())
 }
 pub async fn list_clubs(pool: &SqlitePool) -> Result<Vec<ClubRow>, String> {
     #[derive(sqlx::FromRow)]
@@ -37,19 +67,19 @@ pub async fn list_clubs(pool: &SqlitePool) -> Result<Vec<ClubRow>, String> {
 }
 pub async fn list_players(pool: &SqlitePool, limit: i64) -> Result<Vec<PlayerRow>, String> {
     let lim = limit.clamp(20, 2000);
-    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, Option<String>, Option<i64>, Option<String>, i64, i64, String)>(
-        "SELECT p.id, p.first_name, p.last_name, p.common_name, n.name, p.nation_id, cl.name, c.club_id, COALESCE(pp.pos,'UNI'), ps.current_ability, ps.potential_ability, p.preferred_foot FROM players p JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id LEFT JOIN contracts c ON c.player_id=p.id AND c.is_active=1 LEFT JOIN clubs cl ON cl.id=c.club_id LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp ON pp.player_id=p.id ORDER BY ps.current_ability DESC LIMIT ?"
+    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, Option<String>, Option<i64>, Option<String>, i64, i64, String, Option<String>)>(
+        "SELECT p.id, p.first_name, p.last_name, p.common_name, n.name, p.nation_id, cl.name, c.club_id, COALESCE(pp.pos,'UNI'), ps.current_ability, ps.potential_ability, p.preferred_foot, p.photo_path FROM players p JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id LEFT JOIN contracts c ON c.player_id=p.id AND c.is_active=1 LEFT JOIN clubs cl ON cl.id=c.club_id LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp ON pp.player_id=p.id ORDER BY ps.current_ability DESC LIMIT ?"
     ).bind(lim).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, club, club_id, position, ca, pa, foot)| {
-        PlayerRow { id, first_name, last_name, common_name, nation, nation_id, club: club.unwrap_or_default(), club_id, position: position.unwrap_or_else(|| "UNI".into()), ca, pa, age: 0, foot }
+    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, club, club_id, position, ca, pa, foot, photo_path)| {
+        PlayerRow { id, first_name, last_name, common_name, nation, nation_id, club: club.unwrap_or_default(), club_id, position: position.unwrap_or_else(|| "UNI".into()), ca, pa, age: 0, foot, photo_path }
     }).collect())
 }
 pub async fn list_players_by_club(pool: &SqlitePool, club_id: i64) -> Result<Vec<PlayerRow>, String> {
-    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, Option<String>, Option<i64>, Option<String>, i64, i64, String)>(
-        "SELECT p.id, p.first_name, p.last_name, p.common_name, n.name, p.nation_id, cl.name, c.club_id, COALESCE(pp.pos,'UNI'), ps.current_ability, ps.potential_ability, p.preferred_foot FROM players p JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id JOIN contracts c ON c.player_id=p.id AND c.club_id=? AND c.is_active=1 LEFT JOIN clubs cl ON cl.id=c.club_id LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp ON pp.player_id=p.id ORDER BY ps.current_ability DESC"
+    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, Option<String>, Option<i64>, Option<String>, i64, i64, String, Option<String>)>(
+        "SELECT p.id, p.first_name, p.last_name, p.common_name, n.name, p.nation_id, cl.name, c.club_id, COALESCE(pp.pos,'UNI'), ps.current_ability, ps.potential_ability, p.preferred_foot, p.photo_path FROM players p JOIN nations n ON n.id=p.nation_id JOIN player_states ps ON ps.player_id=p.id JOIN contracts c ON c.player_id=p.id AND c.club_id=? AND c.is_active=1 LEFT JOIN clubs cl ON cl.id=c.club_id LEFT JOIN (SELECT player_id, CASE WHEN por_natural>=18 THEN 'POR' WHEN cie_natural>=18 THEN 'CIE' WHEN piv_natural>=18 THEN 'PIV' WHEN ala_natural>=18 THEN 'ALA' ELSE 'UNI' END as pos FROM player_positions) pp ON pp.player_id=p.id ORDER BY ps.current_ability DESC"
     ).bind(club_id).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, club, club_id, position, ca, pa, foot)| {
-        PlayerRow { id, first_name, last_name, common_name, nation, nation_id, club: club.unwrap_or_default(), club_id, position: position.unwrap_or_else(|| "UNI".into()), ca, pa, age: 0, foot }
+    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, club, club_id, position, ca, pa, foot, photo_path)| {
+        PlayerRow { id, first_name, last_name, common_name, nation, nation_id, club: club.unwrap_or_default(), club_id, position: position.unwrap_or_else(|| "UNI".into()), ca, pa, age: 0, foot, photo_path }
     }).collect())
 }
 pub async fn assign_player(pool: &SqlitePool, player_id: i64, club_id: i64) -> Result<(), String> {
@@ -81,8 +111,8 @@ pub async fn create_nation(pool: &SqlitePool, name: String, confederation_id: i6
     let (id,): (i64,) = sqlx::query_as("INSERT INTO nations(name, confederation_id, reputation, futsal_level) VALUES(?,?,?,?) RETURNING id").bind(name).bind(confederation_id).bind(reputation).bind(futsal_level).fetch_one(pool).await.map_err(|e| e.to_string())?;
     Ok(id)
 }
-pub async fn update_nation(pool: &SqlitePool, id: i64, name: String, reputation: i64, futsal_level: i64) -> Result<(), String> {
-    sqlx::query("UPDATE nations SET name=?, reputation=?, futsal_level=? WHERE id=?").bind(name).bind(reputation).bind(futsal_level).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+pub async fn update_nation(pool: &SqlitePool, id: i64, name: String, confederation_id: i64, reputation: i64, futsal_level: i64) -> Result<(), String> {
+    sqlx::query("UPDATE nations SET name=?, confederation_id=?, reputation=?, futsal_level=? WHERE id=?").bind(name).bind(confederation_id).bind(reputation).bind(futsal_level).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 pub async fn delete_nation(pool: &SqlitePool, id: i64) -> Result<(), String> {
@@ -218,16 +248,22 @@ pub async fn delete_competition(pool: &SqlitePool, id: i64) -> Result<(), String
 }
 
 pub async fn list_staff(pool: &SqlitePool, club_id: Option<i64>) -> Result<Vec<StaffRow>, String> {
-    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, String, Option<i64>, Option<String>, i64, i64, i64, i64, i64, i64, f64)>(
-        "SELECT st.id, st.first_name, st.last_name, COALESCE(st.common_name, st.first_name || ' ' || st.last_name), n.name, st.nation_id, st.role, st.club_id, cl.name, st.tactical, st.man_management, st.judging, st.motivating, st.working_youngsters, st.physio_level, st.wage_weekly FROM staff st JOIN nations n ON n.id=st.nation_id LEFT JOIN clubs cl ON cl.id=st.club_id WHERE (? IS NULL OR st.club_id=?) ORDER BY st.role, st.last_name"
+    #[derive(sqlx::FromRow)]
+    #[allow(dead_code)]
+    struct Sr { id: i64, first_name: String, last_name: String, common_name: String, nation: String, nation_id: i64, role: String, club_id: Option<i64>, club_name: Option<String>, tactical: i64, man_management: i64, judging: i64, motivating: i64, working_youngsters: i64, physio_level: i64, wage_weekly: f64, photo_path: Option<String> }
+    let rows = sqlx::query_as::<_, Sr>(
+        "SELECT st.id, st.first_name, st.last_name, COALESCE(st.common_name, st.first_name || ' ' || st.last_name) AS common_name, n.name AS nation, st.nation_id, st.role, st.club_id, cl.name AS club_name, st.tactical, st.man_management, st.judging, st.motivating, st.working_youngsters, st.physio_level, st.wage_weekly, st.photo_path FROM staff st JOIN nations n ON n.id=st.nation_id LEFT JOIN clubs cl ON cl.id=st.club_id WHERE (? IS NULL OR st.club_id=?) ORDER BY st.role, st.last_name"
     ).bind(club_id).bind(club_id).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, role, club_id, club_name, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly)| StaffRow { id, first_name, last_name, common_name, nation, nation_id, role, club_id, club_name, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly }).collect())
+    Ok(rows.into_iter().map(|r| StaffRow { id: r.id, first_name: r.first_name, last_name: r.last_name, common_name: r.common_name, nation: r.nation, nation_id: r.nation_id, role: r.role, club_id: r.club_id, club_name: r.club_name, tactical: r.tactical, man_management: r.man_management, judging: r.judging, motivating: r.motivating, working_youngsters: r.working_youngsters, physio_level: r.physio_level, wage_weekly: r.wage_weekly, photo_path: r.photo_path }).collect())
 }
 pub async fn list_coaches(pool: &SqlitePool) -> Result<Vec<StaffRow>, String> {
-    let rows = sqlx::query_as::<_, (i64, String, String, String, String, i64, String, Option<i64>, Option<String>, i64, i64, i64, i64, i64, i64, f64)>(
-        "SELECT st.id, st.first_name, st.last_name, COALESCE(st.common_name, st.first_name || ' ' || st.last_name), n.name, st.nation_id, st.role, st.club_id, cl.name, st.tactical, st.man_management, st.judging, st.motivating, st.working_youngsters, st.physio_level, st.wage_weekly FROM staff st JOIN nations n ON n.id=st.nation_id LEFT JOIN clubs cl ON cl.id=st.club_id WHERE st.role='coach' ORDER BY st.last_name"
+    #[derive(sqlx::FromRow)]
+    #[allow(dead_code)]
+    struct Sr { id: i64, first_name: String, last_name: String, common_name: String, nation: String, nation_id: i64, role: String, club_id: Option<i64>, club_name: Option<String>, tactical: i64, man_management: i64, judging: i64, motivating: i64, working_youngsters: i64, physio_level: i64, wage_weekly: f64, photo_path: Option<String> }
+    let rows = sqlx::query_as::<_, Sr>(
+        "SELECT st.id, st.first_name, st.last_name, COALESCE(st.common_name, st.first_name || ' ' || st.last_name) AS common_name, n.name AS nation, st.nation_id, st.role, st.club_id, cl.name AS club_name, st.tactical, st.man_management, st.judging, st.motivating, st.working_youngsters, st.physio_level, st.wage_weekly, st.photo_path FROM staff st JOIN nations n ON n.id=st.nation_id LEFT JOIN clubs cl ON cl.id=st.club_id WHERE st.role='coach' ORDER BY st.last_name"
     ).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, first_name, last_name, common_name, nation, nation_id, role, club_id, club_name, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly)| StaffRow { id, first_name, last_name, common_name, nation, nation_id, role, club_id, club_name, tactical, man_management, judging, motivating, working_youngsters, physio_level, wage_weekly }).collect())
+    Ok(rows.into_iter().map(|r| StaffRow { id: r.id, first_name: r.first_name, last_name: r.last_name, common_name: r.common_name, nation: r.nation, nation_id: r.nation_id, role: r.role, club_id: r.club_id, club_name: r.club_name, tactical: r.tactical, man_management: r.man_management, judging: r.judging, motivating: r.motivating, working_youngsters: r.working_youngsters, physio_level: r.physio_level, wage_weekly: r.wage_weekly, photo_path: r.photo_path }).collect())
 }
 pub async fn create_staff(pool: &SqlitePool, first: String, last: String, nation_id: i64, role: String, club_id: Option<i64>, tactical: i64, man_management: i64, judging: i64, motivating: i64, working_youngsters: i64, physio_level: i64, wage_weekly: f64) -> Result<i64, String> {
     let (id,): (i64,) = sqlx::query_as("INSERT INTO staff(first_name,last_name,common_name,nation_id,role,club_id,tactical,man_management,judging,motivating,working_youngsters,physio_level,wage_weekly) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id")
@@ -253,16 +289,72 @@ pub async fn set_coach(pool: &SqlitePool, club_id: i64, staff_id: Option<i64>) -
     sqlx::query("UPDATE clubs SET coach_id=? WHERE id=?").bind(staff_id).bind(club_id).execute(pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
-pub async fn set_crest(pool: &SqlitePool, club_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+
+fn save_media(data_b64: &str, ext: &str, prefix: &str) -> Result<String, String> {
     let bytes = base64_decode(data_b64).ok_or("Imagen no válida (base64)")?;
-    let dir = crate::db::app_data_dir().join("crests");
+    let dir = crate::db::app_data_dir().join("media");
     let _ = std::fs::create_dir_all(&dir);
     let safe_ext = if ["png","jpg","jpeg","webp","gif","svg"].contains(&ext.to_lowercase().as_str()) { ext.to_lowercase() } else { "png".into() };
-    let filename = format!("club_{}.{}", club_id, safe_ext);
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0);
+    let filename = format!("{}_{}.{}", prefix, nanos, safe_ext);
     let path = dir.join(&filename);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
-    sqlx::query("UPDATE clubs SET crest_path=? WHERE id=?").bind(path.display().to_string()).bind(club_id).execute(pool).await.map_err(|e| e.to_string())?;
     Ok(path.display().to_string())
+}
+
+pub async fn set_crest(pool: &SqlitePool, club_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+    let path = save_media(data_b64, ext, &format!("club_{}", club_id))?;
+    sqlx::query("UPDATE clubs SET crest_path=? WHERE id=?").bind(&path).bind(club_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(path)
+}
+pub async fn set_player_photo(pool: &SqlitePool, player_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+    let path = save_media(data_b64, ext, &format!("player_{}", player_id))?;
+    sqlx::query("UPDATE players SET photo_path=? WHERE id=?").bind(&path).bind(player_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(path)
+}
+pub async fn set_staff_photo(pool: &SqlitePool, staff_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+    let path = save_media(data_b64, ext, &format!("staff_{}", staff_id))?;
+    sqlx::query("UPDATE staff SET photo_path=? WHERE id=?").bind(&path).bind(staff_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(path)
+}
+pub async fn set_nation_flag(pool: &SqlitePool, nation_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+    let path = save_media(data_b64, ext, &format!("flag_{}", nation_id))?;
+    sqlx::query("UPDATE nations SET flag_path=? WHERE id=?").bind(&path).bind(nation_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(path)
+}
+pub async fn set_crest_confed(pool: &SqlitePool, confed_id: i64, data_b64: &str, ext: &str) -> Result<String, String> {
+    let path = save_media(data_b64, ext, &format!("confed_{}", confed_id))?;
+    sqlx::query("UPDATE confederations SET crest_path=? WHERE id=?").bind(&path).bind(confed_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+#[derive(sqlx::FromRow)]
+#[allow(dead_code)]
+struct AttrRaw { first_touch: i64, dribbling: i64, ball_control: i64, technique: i64, passing: i64, vision: i64, crossing: i64, long_shots: i64, finishing: i64, heading: i64, penalty_taking: i64, tackling: i64, marking: i64, interception: i64, blocking: i64, anticipation: i64, decisions: i64, positioning: i64, off_the_ball: i64, work_rate: i64, composure: i64, concentration: i64, determination: i64, bravery: i64, aggression: i64, leadership: i64, teamwork: i64, flair: i64, acceleration: i64, pace: i64, agility: i64, balance: i64, stamina: i64, strength: i64, jumping: i64, reflexes: i64, handling: i64, one_on_ones: i64, positioning_gk: i64, rushing_out: i64, throwing: i64, kicking: i64, professionalism: i64, consistency: i64, important_matches: i64, injury_proneness: i64 }
+
+pub async fn get_player_attributes(pool: &SqlitePool, player_id: i64) -> Result<PlayerAttributes, String> {
+    let pos: i64 = sqlx::query_scalar("SELECT CASE WHEN por_natural>=18 THEN 0 WHEN cie_natural>=18 THEN 1 WHEN piv_natural>=18 THEN 3 WHEN ala_natural>=18 THEN 2 ELSE 4 END FROM player_positions WHERE player_id=?")
+        .bind(player_id).fetch_one(pool).await.unwrap_or(4);
+    let position = ["POR","CIE","ALA","PIV","UNI"][pos.max(0) as usize].to_string();
+    let ca: i64 = sqlx::query_scalar("SELECT current_ability FROM player_states WHERE player_id=?").bind(player_id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+    let pa: i64 = sqlx::query_scalar("SELECT potential_ability FROM player_states WHERE player_id=?").bind(player_id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+    let row = sqlx::query_as::<_, AttrRaw>(
+        "SELECT first_touch, dribbling, ball_control, technique, passing, vision, crossing, long_shots, finishing, heading, penalty_taking, tackling, marking, interception, blocking, anticipation, decisions, positioning, off_the_ball, work_rate, composure, concentration, determination, bravery, aggression, leadership, teamwork, flair, acceleration, pace, agility, balance, stamina, strength, jumping, reflexes, handling, one_on_ones, positioning_gk, rushing_out, throwing, kicking, professionalism, consistency, important_matches, injury_proneness FROM player_attributes WHERE player_id=?"
+    ).bind(player_id).fetch_one(pool).await.map_err(|e| e.to_string())?;
+    Ok(PlayerAttributes { ca, pa, position, first_touch: row.first_touch, dribbling: row.dribbling, ball_control: row.ball_control, technique: row.technique, passing: row.passing, vision: row.vision, crossing: row.crossing, long_shots: row.long_shots, finishing: row.finishing, heading: row.heading, penalty_taking: row.penalty_taking, tackling: row.tackling, marking: row.marking, interception: row.interception, blocking: row.blocking, anticipation: row.anticipation, decisions: row.decisions, positioning: row.positioning, off_the_ball: row.off_the_ball, work_rate: row.work_rate, composure: row.composure, concentration: row.concentration, determination: row.determination, bravery: row.bravery, aggression: row.aggression, leadership: row.leadership, teamwork: row.teamwork, flair: row.flair, acceleration: row.acceleration, pace: row.pace, agility: row.agility, balance: row.balance, stamina: row.stamina, strength: row.strength, jumping: row.jumping, reflexes: row.reflexes, handling: row.handling, one_on_ones: row.one_on_ones, positioning_gk: row.positioning_gk, rushing_out: row.rushing_out, throwing: row.throwing, kicking: row.kicking, professionalism: row.professionalism, consistency: row.consistency, important_matches: row.important_matches, injury_proneness: row.injury_proneness })
+}
+
+pub async fn update_player_attributes(pool: &SqlitePool, player_id: i64, attrs: &PlayerAttributes) -> Result<(), String> {
+    let (por,cie,ala,piv,uni) = match attrs.position.as_str() { "POR"=>(20,2,1,1,3), "CIE"=>(1,20,12,8,10), "ALA"=>(1,10,20,10,14), "PIV"=>(1,6,10,20,12), _=>(3,10,14,14,20) };
+    sqlx::query("UPDATE player_positions SET por_natural=?, cie_natural=?, ala_natural=?, piv_natural=?, uni_natural=? WHERE player_id=?")
+        .bind(por).bind(cie).bind(ala).bind(piv).bind(uni).bind(player_id).execute(pool).await.map_err(|e| e.to_string())?;
+    sqlx::query("UPDATE player_states SET current_ability=?, potential_ability=? WHERE player_id=?").bind(attrs.ca).bind(attrs.pa).bind(player_id).execute(pool).await.map_err(|e| e.to_string())?;
+    sqlx::query(
+        "UPDATE player_attributes SET first_touch=?, dribbling=?, ball_control=?, technique=?, passing=?, vision=?, crossing=?, long_shots=?, finishing=?, heading=?, penalty_taking=?, tackling=?, marking=?, interception=?, blocking=?, anticipation=?, decisions=?, positioning=?, off_the_ball=?, work_rate=?, composure=?, concentration=?, determination=?, bravery=?, aggression=?, leadership=?, teamwork=?, flair=?, acceleration=?, pace=?, agility=?, balance=?, stamina=?, strength=?, jumping=?, reflexes=?, handling=?, one_on_ones=?, positioning_gk=?, rushing_out=?, throwing=?, kicking=?, professionalism=?, consistency=?, important_matches=?, injury_proneness=? WHERE player_id=?"
+    )
+    .bind(attrs.first_touch).bind(attrs.dribbling).bind(attrs.ball_control).bind(attrs.technique).bind(attrs.passing).bind(attrs.vision).bind(attrs.crossing).bind(attrs.long_shots).bind(attrs.finishing).bind(attrs.heading).bind(attrs.penalty_taking).bind(attrs.tackling).bind(attrs.marking).bind(attrs.interception).bind(attrs.blocking).bind(attrs.anticipation).bind(attrs.decisions).bind(attrs.positioning).bind(attrs.off_the_ball).bind(attrs.work_rate).bind(attrs.composure).bind(attrs.concentration).bind(attrs.determination).bind(attrs.bravery).bind(attrs.aggression).bind(attrs.leadership).bind(attrs.teamwork).bind(attrs.flair).bind(attrs.acceleration).bind(attrs.pace).bind(attrs.agility).bind(attrs.balance).bind(attrs.stamina).bind(attrs.strength).bind(attrs.jumping).bind(attrs.reflexes).bind(attrs.handling).bind(attrs.one_on_ones).bind(attrs.positioning_gk).bind(attrs.rushing_out).bind(attrs.throwing).bind(attrs.kicking).bind(attrs.professionalism).bind(attrs.consistency).bind(attrs.important_matches).bind(attrs.injury_proneness).bind(player_id)
+    .execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn base64_decode(s: &str) -> Option<Vec<u8>> {
