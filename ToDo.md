@@ -10,7 +10,7 @@
 - [x] Documentos base (PRD V2 + Prototipo Técnico)
 - [x] plan.md creado
 - [x] M1: Scaffold Tauri v2 + React + TS compilando — `npm run build` + `cargo check` limpios
-- [ ] M2: Base de datos SQLite (migraciones + pool)
+- [x] M2: Base de datos SQLite (migraciones + pool) — 001_initial.sql con 20+ tablas, WAL+FK, test `migration_creates_tables` OK
 - [ ] M3: Generación procedural del mundo (3 ligas)
 - [ ] M4: Competiciones y calendario round-robin
 - [ ] M5: Motor de partido 2D con reglas futsal
@@ -32,3 +32,4 @@
 |---|---|---|
 | 2026-08-26 | Docs | Plan de desarrollo definido y aprobado |
 | 2026-08-26 | M1 | Scaffold Tauri v2 + React + TS + Tailwind + Konva/Zustand. `cargo check` limpio. |
+| 2026-08-26 | M2 | SQLite WAL, 20+ tablas, indices, test migración OK (23 tablas). |

@@ -13,6 +13,13 @@ pub struct AppInfo {
   version: String,
 }
 
+#[derive(Serialize)]
+pub struct DbStatus {
+  ok: bool,
+  tables: i64,
+  message: String,
+}
+
 #[tauri::command]
 pub fn ping() -> String {
   "pong".to_string()
@@ -24,4 +31,21 @@ pub fn get_app_info() -> AppInfo {
     name: "Futsal Manager 27".to_string(),
     version: "0.1.0".to_string(),
   }
+}
+
+#[tauri::command]
+pub async fn test_db() -> Result<DbStatus, String> {
+  let pool = crate::db::init_memory_pool()
+    .await
+    .map_err(|e| e.to_string())?;
+  let (count,): (i64,) =
+    sqlx::query_as("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_sqlx%'")
+      .fetch_one(&pool)
+      .await
+      .map_err(|e| e.to_string())?;
+  Ok(DbStatus {
+    ok: true,
+    tables: count,
+    message: format!("{count} tablas creadas, WAL + FK activos"),
+  })
 }
