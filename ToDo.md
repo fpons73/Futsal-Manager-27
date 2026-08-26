@@ -1,0 +1,33 @@
+# FUTSAL MANAGER 27 — Estado del Proyecto
+
+> Este archivo se actualiza con cada hito completado. Cada hito se sube a GitHub.
+> Repo: https://github.com/fpons73/Futsal-Manager-27.git
+
+---
+
+## Hitos
+
+- [x] Documentos base (PRD V2 + Prototipo Técnico)
+- [x] plan.md creado
+- [ ] M1: Scaffold Tauri v2 + React + TS compilando
+- [ ] M2: Base de datos SQLite (migraciones + pool)
+- [ ] M3: Generación procedural del mundo (3 ligas)
+- [ ] M4: Competiciones y calendario round-robin
+- [ ] M5: Motor de partido 2D con reglas futsal
+- [ ] M6: Procesador de tiempo y simulación multi-liga
+- [ ] M7: API de comandos Tauri completa
+- [ ] M8: Frontend gestión (dashboard, plantilla, tácticas, ligas)
+- [ ] M9: Partido en vivo con campo Konva
+- [ ] M10: Mercado de fichajes + bandeja de entrada
+- [ ] M11: Entrenamientos, progresión, lesiones y sanciones
+- [ ] M12: Finanzas del club
+- [ ] M13: Fin de temporada y rollover
+- [ ] M14: Pulido, tests, clippy/tsc limpios, README
+
+---
+
+## Registro de avances
+
+| Fecha | Hito | Notas |
+|---|---|---|
+| 2026-08-26 | Docs | Plan de desarrollo definido y aprobado |
