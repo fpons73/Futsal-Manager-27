@@ -12,6 +12,7 @@
 - [x] M1: Scaffold Tauri v2 + React + TS compilando — `npm run build` + `cargo check` limpios
 - [x] M2: Base de datos SQLite (migraciones + pool) — 001_initial.sql con 20+ tablas, WAL+FK, test `migration_creates_tables` OK
 - [ ] M3: Generación procedural del mundo (3 ligas)
+- [x] M3: Generación procedural del mundo (3 ligas) — 46 clubes, 552 jugadores, 3 competiciones, test OK
 - [ ] M4: Competiciones y calendario round-robin
 - [ ] M5: Motor de partido 2D con reglas futsal
 - [ ] M6: Procesador de tiempo y simulación multi-liga
@@ -33,3 +34,4 @@
 | 2026-08-26 | Docs | Plan de desarrollo definido y aprobado |
 | 2026-08-26 | M1 | Scaffold Tauri v2 + React + TS + Tailwind + Konva/Zustand. `cargo check` limpio. |
 | 2026-08-26 | M2 | SQLite WAL, 20+ tablas, indices, test migración OK (23 tablas). |
+| 2026-08-26 | M3 | Mundo: 3 confederaciones, 3 naciones, ciudades, 46 estadios/clubes/finanzas/tácticas, 552 jugadores con atributos/contratos, test_counts OK. |

@@ -49,3 +49,21 @@ pub async fn test_db() -> Result<DbStatus, String> {
     message: format!("{count} tablas creadas, WAL + FK activos"),
   })
 }
+
+#[derive(Serialize)]
+pub struct WorldSeedResult {
+  clubs: i64,
+  players: i64,
+  competitions: i64,
+  message: String,
+}
+
+#[tauri::command]
+pub async fn seed_world_cmd() -> Result<WorldSeedResult, String> {
+  let pool = crate::db::init_memory_pool().await.map_err(|e| e.to_string())?;
+  crate::world::seed_world(&pool).await?;
+  let (clubs,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM clubs").fetch_one(&pool).await.map_err(|e| e.to_string())?;
+  let (players,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM players").fetch_one(&pool).await.map_err(|e| e.to_string())?;
+  let (comps,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM competitions").fetch_one(&pool).await.map_err(|e| e.to_string())?;
+  Ok(WorldSeedResult { clubs, players, competitions: comps, message: format!("Mundo generado: {clubs} clubes, {players} jugadores") })
+}
