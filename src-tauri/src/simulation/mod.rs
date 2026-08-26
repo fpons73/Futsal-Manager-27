@@ -1,0 +1,165 @@
+use chrono::NaiveDate;
+use serde::Serialize;
+use sqlx::SqlitePool;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdvanceResult {
+    pub from_date: String,
+    pub to_date: String,
+    pub matches_played: i64,
+    pub results: Vec<String>,
+}
+
+pub async fn advance_day(pool: &SqlitePool) -> Result<AdvanceResult, String> {
+    let (cur_date,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1")
+        .fetch_one(pool).await.map_err(|e| e.to_string())?;
+
+    let date = NaiveDate::parse_from_str(&cur_date, "%Y-%m-%d").map_err(|e| e.to_string())?;
+
+    let matches: Vec<(i64, i64, i64, i64)> =
+        sqlx::query_as("SELECT id, home_club_id, away_club_id, competition_id FROM matches WHERE date=? AND status='scheduled'")
+            .bind(&cur_date).fetch_all(pool).await.map_err(|e| e.to_string())?;
+
+    let mut results = Vec::new();
+    for (mid, hid, aid, comp_id) in matches.iter().copied() {
+        let snap = crate::engine::simulate_clubs(pool, hid, aid).await?;
+        let home_goals = snap.score[0] as i64;
+        let away_goals = snap.score[1] as i64;
+
+        let home_shots = snap.shots[0] as i64;
+        let away_shots = snap.shots[1] as i64;
+        let home_fouls = snap.fouls[0] as i64;
+        let away_fouls = snap.fouls[1] as i64;
+
+        sqlx::query("UPDATE matches SET status='finished', home_score=?, away_score=?, home_shots=?, away_shots=?, home_fouls=?, away_fouls=? WHERE id=?")
+            .bind(home_goals).bind(away_goals).bind(home_shots).bind(away_shots).bind(home_fouls).bind(away_fouls).bind(mid)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+
+        for ev in &snap.events {
+            if ev.kind == "goal" || ev.kind == "double_penalty_goal" || ev.kind == "foul" || ev.kind == "double_penalty" {
+                let club_for_event = if ev.team_id == 0 { hid } else { aid };
+                sqlx::query("INSERT INTO match_events(match_id, minute, second, event_type, player_id, club_id, description, x, y) VALUES(?,?,?,?,?,?,?,?,?)")
+                    .bind(mid).bind(ev.minute as i64).bind(ev.second as i64).bind(&ev.kind).bind(ev.player_id.map(|v| v as i64)).bind(club_for_event).bind(&ev.description).bind(ev.x as f64).bind(ev.y as f64)
+                    .execute(pool).await.map_err(|e| e.to_string())?;
+            }
+        }
+
+        update_standings(pool, comp_id, hid, aid, home_goals, away_goals).await?;
+
+        let home_name: (String,) = sqlx::query_as("SELECT short_name FROM clubs WHERE id=?").bind(hid).fetch_one(pool).await.map_err(|e| e.to_string())?;
+        let away_name: (String,) = sqlx::query_as("SELECT short_name FROM clubs WHERE id=?").bind(aid).fetch_one(pool).await.map_err(|e| e.to_string())?;
+        results.push(format!("{} {}-{} {}", home_name.0, home_goals, away_goals, away_name.0));
+    }
+
+    let next = date + chrono::Duration::days(1);
+    let next_s = next.format("%Y-%m-%d").to_string();
+    sqlx::query("UPDATE game_state SET game_date=? WHERE id=1").bind(&next_s).execute(pool).await.map_err(|e| e.to_string())?;
+
+    recompute_positions(pool).await?;
+
+    Ok(AdvanceResult {
+        from_date: cur_date,
+        to_date: next_s,
+        matches_played: results.len() as i64,
+        results,
+    })
+}
+
+async fn update_standings(pool: &SqlitePool, comp_id: i64, hid: i64, aid: i64, hg: i64, ag: i64) -> Result<(), String> {
+    let (hw, hl, hd) = if hg > ag { (1, 0, 0) } else if hg < ag { (0, 1, 0) } else { (0, 0, 1) };
+    let (aw, al, ad) = if ag > hg { (1, 0, 0) } else if ag < hg { (0, 1, 0) } else { (0, 0, 1) };
+    let hpts = hw * 3 + hd;
+    let apts = aw * 3 + ad;
+
+    sqlx::query(
+        "UPDATE league_standings SET played=played+1, won=won+?, drawn=drawn+?, lost=lost+?, goals_for=goals_for+?, goals_against=goals_against+?, goal_difference=goals_for-goals_against, points=points+? WHERE competition_id=? AND club_id=?"
+    )
+    .bind(hw).bind(hd).bind(hl).bind(hg).bind(ag).bind(hpts).bind(comp_id).bind(hid)
+    .execute(pool).await.map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        "UPDATE league_standings SET played=played+1, won=won+?, drawn=drawn+?, lost=lost+?, goals_for=goals_for+?, goals_against=goals_against+?, goal_difference=goals_for-goals_against, points=points+? WHERE competition_id=? AND club_id=?"
+    )
+    .bind(aw).bind(ad).bind(al).bind(ag).bind(hg).bind(apts).bind(comp_id).bind(aid)
+    .execute(pool).await.map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+async fn recompute_positions(pool: &SqlitePool) -> Result<(), String> {
+    let comps: Vec<(i64,)> = sqlx::query_as("SELECT id FROM competitions").fetch_all(pool).await.map_err(|e| e.to_string())?;
+    for (cid,) in comps {
+        let rows: Vec<(i64, i64, i64, i64)> = sqlx::query_as(
+            "SELECT club_id, points, goal_difference, goals_for FROM league_standings WHERE competition_id=? ORDER BY points DESC, goal_difference DESC, goals_for DESC, club_id ASC"
+        ).bind(cid).fetch_all(pool).await.map_err(|e| e.to_string())?;
+        for (pos, (club_id, _, _, _)) in rows.iter().enumerate() {
+            sqlx::query("UPDATE league_standings SET position=? WHERE competition_id=? AND club_id=?")
+                .bind((pos + 1) as i64).bind(cid).bind(club_id)
+                .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn advance_days(pool: &SqlitePool, n: i64) -> Result<Vec<AdvanceResult>, String> {
+    let mut out = Vec::new();
+    for _ in 0..n {
+        out.push(advance_day(pool).await?);
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use crate::world;
+
+    #[tokio::test]
+    async fn advance_simulates_and_advances() {
+        let pool = db::init_memory_pool().await.unwrap();
+        world::seed_world(&pool).await.unwrap();
+
+        let (d0,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.unwrap();
+        assert_eq!(d0, "2026-07-10");
+
+        let r1 = advance_day(&pool).await.unwrap();
+        assert_eq!(r1.from_date, "2026-07-10");
+        assert_eq!(r1.to_date, "2026-07-11");
+        assert_eq!(r1.matches_played, 0);
+
+        let mut played = 0;
+        for _ in 0..50 {
+            let r = advance_day(&pool).await.unwrap();
+            played += r.matches_played;
+            if played > 0 { break; }
+        }
+        assert!(played > 0, "debe haber jornadas dentro de 50 días desde julio");
+
+        let (finished,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE status='finished'").fetch_one(&pool).await.unwrap();
+        assert!(finished > 0);
+        let (with_goals,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM match_events WHERE event_type='goal' OR event_type='double_penalty_goal'").fetch_one(&pool).await.unwrap();
+        assert!(with_goals > 0);
+
+        let (top_pos,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings WHERE position>0").fetch_one(&pool).await.unwrap();
+        assert_eq!(top_pos, 46);
+    }
+
+    #[tokio::test]
+    async fn full_season_simulation_finishes_662() {
+        let pool = db::init_memory_pool().await.unwrap();
+        world::seed_world(&pool).await.unwrap();
+        let mut total = 0;
+        for _ in 0..400 {
+            let r = advance_day(&pool).await.unwrap();
+            total += r.matches_played;
+            let (pending,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE status='scheduled'").fetch_one(&pool).await.unwrap();
+            if pending == 0 { break; }
+        }
+        assert_eq!(total, 662);
+        let (pending,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches WHERE status='scheduled'").fetch_one(&pool).await.unwrap();
+        assert_eq!(pending, 0);
+        let (played,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings WHERE played>0").fetch_one(&pool).await.unwrap();
+        assert_eq!(played, 46);
+    }
+}

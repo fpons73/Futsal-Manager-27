@@ -4,7 +4,7 @@ use std::sync::Mutex;
 #[derive(Default)]
 pub struct AppState {
   #[allow(dead_code)]
-  pub current_date: Mutex<String>,
+  pub game_date: Mutex<String>,
 }
 
 #[derive(Serialize)]

@@ -78,4 +78,13 @@ mod tests {
             .expect("fk pragma");
         assert_eq!(fk, 1);
     }
+
+    #[tokio::test]
+    async fn debug_game_state_insert() {
+        let pool = init_memory_pool().await.unwrap();
+        sqlx::query("INSERT INTO game_state(id, game_date, season, game_speed) VALUES(1,'2026-07-10','2026/2027','normal')")
+            .execute(&pool).await.unwrap();
+        let (d,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.unwrap();
+        assert_eq!(d, "2026-07-10");
+    }
 }

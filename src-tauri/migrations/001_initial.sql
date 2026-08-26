@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
 
 CREATE TABLE IF NOT EXISTS game_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  current_date TEXT NOT NULL,
+  game_date TEXT NOT NULL,
   season TEXT NOT NULL,
   user_club_id INTEGER REFERENCES clubs(id),
   game_speed TEXT DEFAULT 'normal'

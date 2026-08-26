@@ -150,9 +150,12 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
         }
     }
 
-    sqlx::query("INSERT INTO game_state(id,current_date,season,game_speed) VALUES(1,?,?, 'normal')")
-        .bind(GAME_DATE).bind(SEASON)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    sqlx::query("INSERT INTO game_state(id, game_date, season, game_speed) VALUES(1, ?, ?, 'normal')")
+        .bind(GAME_DATE)
+        .bind(SEASON)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
 
     tx.commit().await.map_err(|e| e.to_string())?;
 
@@ -284,5 +287,7 @@ mod tests {
         assert_eq!(contracts, 552);
         let (matches,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM matches").fetch_one(&pool).await.unwrap();
         assert_eq!(matches, 662, "662 partidos doble robin (240+240+182)");
+        let (d0,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.unwrap();
+        assert_eq!(d0, "2026-07-10");
     }
 }
