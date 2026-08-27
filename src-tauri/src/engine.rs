@@ -166,13 +166,28 @@ pub struct MatchSnapshot {
     pub events: Vec<MatchEvent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum MatchState {
     PreMatch,
     FirstHalf,
     HalfTime,
     SecondHalf,
     Finished,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct EngineTactics {
+    pub formation: u8,
+    pub tempo: f32,
+    pub pressing: f32,
+    pub defensive_line: f32,
+    pub width: f32,
+}
+
+impl Default for EngineTactics {
+    fn default() -> Self {
+        Self { formation: 0, tempo: 50.0, pressing: 50.0, defensive_line: 50.0, width: 50.0 }
+    }
 }
 
 pub struct MatchEngine {
@@ -194,6 +209,8 @@ pub struct MatchEngine {
     pub rng: StdRng,
     pub powerplay: [bool; 2],
     pub bench: [Vec<u32>; 2],
+    pub tactics: [EngineTactics; 2],
+    pub allow_powerplay: [bool; 2],
     on_pitch_ids: [Vec<u32>; 2],
 }
 
@@ -246,6 +263,8 @@ impl MatchEngine {
             rng: StdRng::from_entropy(),
             powerplay: [false, false],
             bench,
+            tactics: [EngineTactics::default(), EngineTactics::default()],
+            allow_powerplay: [true, true],
             on_pitch_ids: on_pitch,
         };
         eng.reset_positions();
@@ -258,10 +277,24 @@ impl MatchEngine {
         self
     }
 
+    pub fn set_tactics(&mut self, team: usize, t: EngineTactics) {
+        if team < 2 {
+            self.tactics[team] = t;
+            if self.state == MatchState::PreMatch {
+                self.reset_positions();
+            }
+        }
+    }
+
+    pub fn set_allow_powerplay(&mut self, team: usize, enabled: bool) {
+        if team < 2 { self.allow_powerplay[team] = enabled; }
+    }
+
     fn reset_positions(&mut self) {
         for p in &mut self.players {
             if !p.on_pitch { continue; }
-            let (x, y) = tactical_target(p.role, p.team_id, false);
+            let t = self.tactics[p.team_id as usize];
+            let (x, y) = tactical_target(p.role, p.team_id, false, t);
             p.x = x;
             p.y = y;
         }
@@ -325,7 +358,7 @@ impl MatchEngine {
         if losing_powerplay {
             for t in 0..2 {
                 let other = 1 - t;
-                if self.score[t] < self.score[other] {
+                if self.score[t] < self.score[other] && self.allow_powerplay[t] {
                     self.powerplay[t] = true;
                 }
             }
@@ -339,9 +372,13 @@ impl MatchEngine {
         }
 
         if self.time % 2 == 0 {
-            if let Some(ev) = self.resolve_action() {
-                new_events.push(ev.clone());
-                self.events.push(ev);
+            let period = 90.0 - (self.tactics[0].tempo + self.tactics[1].tempo) / 2.0 * 0.4;
+            let period = period.max(20.0) as u32;
+            if self.time % period == 0 {
+                if let Some(ev) = self.resolve_action() {
+                    new_events.push(ev.clone());
+                    self.events.push(ev);
+                }
             }
         }
 
@@ -353,7 +390,8 @@ impl MatchEngine {
         for p in &mut self.players {
             if !p.on_pitch { continue; }
             let attacking = Some(p.team_id) == possessing;
-            let (tx, ty) = tactical_target(p.role, p.team_id, attacking);
+            let t = self.tactics[p.team_id as usize];
+            let (tx, ty) = tactical_target(p.role, p.team_id, attacking, t);
             let dx = tx - p.x;
             let dy = ty - p.y;
             let dist = (dx * dx + dy * dy).sqrt();
@@ -410,7 +448,7 @@ impl MatchEngine {
             }
             for p in &mut self.players {
                 if p.id == out_id { p.on_pitch = false; }
-                if p.id == in_id { p.on_pitch = true; p.stamina_now = 95.0; let (tx, ty) = tactical_target(p.role, p.team_id, false); p.x = tx; p.y = ty; }
+                if p.id == in_id { p.on_pitch = true; p.stamina_now = 95.0; let (tx, ty) = tactical_target(p.role, p.team_id, false, self.tactics[team]); p.x = tx; p.y = ty; }
             }
             self.events.push(MatchEvent {
                 minute: self.time / 60, second: self.time % 60, kind: "substitution".into(),
@@ -483,8 +521,10 @@ impl MatchEngine {
         let target = *teammates.choose(&mut self.rng).unwrap();
         let defender = self.on_pitch_ids[opp_team as usize].choose(&mut self.rng).copied();
         let def_attrs = defender.and_then(|did| self.players.iter().find(|p| p.id == did).map(|p| p.attrs.clone()));
+        // presión del equipo defensor: más presión -> mayor intercepción
+        let press_mod = 0.9 + (self.tactics[opp_team as usize].pressing / 100.0) * 0.2;
 
-        let (result, _prob) = resolve_duel(&holder_attrs, &def_attrs.unwrap_or_else(|| holder_attrs.clone()), "pass", &mut self.rng);
+        let (result, _prob) = resolve_duel(&holder_attrs, &def_attrs.unwrap_or_else(|| holder_attrs.clone()), "pass", &mut self.rng, press_mod);
 
         match result {
             DuelResult::Success => {
@@ -582,33 +622,60 @@ impl MatchEngine {
     }
 }
 
-fn tactical_target(role: Role, team_id: u32, attacking: bool) -> (f32, f32) {
+fn tactical_target(role: Role, team_id: u32, attacking: bool, t: EngineTactics) -> (f32, f32) {
     let left = team_id == 0;
-    match role {
-        Role::POR => if left { (2.0, 10.0) } else { (38.0, 10.0) },
-        Role::CIE => if left { (8.0, 10.0) } else { (32.0, 10.0) },
+    // profundidad (0-100): desplaza el bloque adelante/atrás
+    let depth = ((t.defensive_line - 50.0) / 50.0).clamp(-1.0, 1.0);
+    // amplitud (0-100): separa los laterales
+    let width = ((t.width - 50.0) / 50.0).clamp(-1.0, 1.0);
+    // formaciones: 0=3-1, 1=4-0, 2=2-2, 3=5-0
+    let base = match role {
+        Role::POR => if left { (2.5, 10.0) } else { (37.5, 10.0) },
+        Role::CIE => if left { (9.0, 10.0) } else { (31.0, 10.0) },
         Role::ALA => {
+            let advance = if t.formation == 1 { 2.0 } else if t.formation == 3 { 4.0 } else { 0.0 };
+            let spread = width * 3.0;
             if left {
-                if attacking { (22.0, 5.5) } else { (12.0, 6.0) }
+                let x = if attacking { 21.0 + advance } else { 12.0 };
+                (x, 5.5 - spread)
             } else {
-                if attacking { (18.0, 14.5) } else { (28.0, 14.0) }
+                let x = if attacking { 19.0 - advance } else { 28.0 };
+                (x, 14.5 + spread)
             }
         }
-        Role::PIV => if left { (31.0, 10.0) } else { (9.0, 10.0) },
-        Role::UNI => if left { (16.0, 10.0) } else { (24.0, 10.0) },
+        Role::PIV => {
+            // 5-0: pívot muy adelantado; 2-2: más retrasado
+            let advance = match t.formation { 3 => 5.0, 2 => -1.0, _ => 0.0 };
+            let x = if left { 31.0 + advance } else { 9.0 - advance };
+            (x, 10.0)
+        }
+        Role::UNI => {
+            let advance = if t.formation == 3 { 6.0 } else { 0.0 };
+            let x = if left { 16.0 + advance } else { 24.0 - advance };
+            (x, 10.0)
+        }
+    };
+    // aplicar profundidad (más arriba = atacar más) en la coordenada X según dirección
+    let mut bx = base.0;
+    let by = base.1;
+    if left {
+        bx = (bx + depth * 3.0).clamp(1.0, 39.0);
+    } else {
+        bx = (bx - depth * 3.0).clamp(1.0, 39.0);
     }
+    (bx, by)
 }
 
 #[derive(Debug)]
 enum DuelResult { Success, Failure, Foul }
 
-fn resolve_duel(attacker: &PlayerAttrs, defender: &PlayerAttrs, action: &str, rng: &mut StdRng) -> (DuelResult, f32) {
+fn resolve_duel(attacker: &PlayerAttrs, defender: &PlayerAttrs, action: &str, rng: &mut StdRng, def_bonus: f32) -> (DuelResult, f32) {
     let atk = match action {
         "pass" => attacker.passing * 0.5 + attacker.vision * 0.3 + attacker.technique * 0.2,
         "dribble" => attacker.dribbling * 0.5 + attacker.acceleration * 0.3 + attacker.technique * 0.2,
         _ => attacker.passing,
     };
-    let def = defender.tackling * 0.4 + defender.anticipation * 0.3 + defender.positioning * 0.3;
+    let def = (defender.tackling * 0.4 + defender.anticipation * 0.3 + defender.positioning * 0.3) * def_bonus;
     let noise: f32 = rng.gen_range(0.85..1.15);
     let prob = ((atk / (atk + def).max(1.0)) * noise).clamp(0.05, 0.95);
     let roll: f32 = rng.gen();
@@ -682,7 +749,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let mut wins = 0;
         for _ in 0..200 {
-            let (r, _) = resolve_duel(&strong, &weak, "pass", &mut rng);
+            let (r, _) = resolve_duel(&strong, &weak, "pass", &mut rng, 1.0);
             if matches!(r, DuelResult::Success) { wins += 1; }
         }
         assert!(wins > 120, "fuerte debe ganar >60%, gano {wins}/200");

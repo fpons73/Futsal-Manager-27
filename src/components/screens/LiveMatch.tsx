@@ -3,10 +3,10 @@ import { api, type MatchSnapshot } from "../../api";
 import { useStore } from "../../store";
 import FutsalPitch from "../FutsalPitch";
 
-export default function LiveMatch() {
+export default function LiveMatch({ initial, onBackToSetup }: { initial?: MatchSnapshot | null; onBackToSetup?: () => void }) {
   const { userClubId } = useStore();
-  const [snap, setSnap] = useState<MatchSnapshot | null>(null);
-  const [running, setRunning] = useState(false);
+  const [snap, setSnap] = useState<MatchSnapshot | null>(initial ?? null);
+  const [running, setRunning] = useState(Boolean(initial));
   const [speed, setSpeed] = useState<1 | 2 | 5>(1);
   const intervalRef = useRef<number | null>(null);
 
@@ -39,7 +39,11 @@ export default function LiveMatch() {
       <div className="mx-auto max-w-6xl p-6 text-center">
         <h2 className="mb-4 text-xl font-black">Partido en vivo</h2>
         <p className="mb-4 text-sm text-fm-dim">Simulación 2D con motor Rust: faltas, doble penalti, powerplay y cambios volantes.</p>
-        <button onClick={start} className="rounded-lg bg-fm-accent px-6 py-3 font-bold text-black">Iniciar próximo partido</button>
+        {onBackToSetup ? (
+          <button onClick={onBackToSetup} className="rounded-lg bg-fm-accent px-6 py-3 font-bold text-black">Configurar tácticas</button>
+        ) : (
+          <button onClick={start} className="rounded-lg bg-fm-accent px-6 py-3 font-bold text-black">Iniciar próximo partido</button>
+        )}
       </div>
     );
   }

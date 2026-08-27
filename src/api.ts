@@ -16,6 +16,7 @@ export type TrainingRow = { day:number; type_id:number; type_name:string; catego
 export type ProgressRow = { player_id:number; name:string; position:string; ca:number; pa:number; age:number; improvement:number };
 export type FinanceRow = { club_id:number; club_name:string; balance:number; transfer_budget:number; wage_budget:number; total_wages:number; sponsorship:number; ticket_income:number; prize_money:number; weekly_wages:number; monthly_balance:number };
 export type InboxRow = { id:number; sender:string; subject:string; body:string; date:string; is_read:number; is_important:number };
+export type PreMatch = { home_name:string; home_color:string; away_name:string; away_color:string; tactics:{ formation:string; tempo:number; pressing:number; defensive_line:number; width:number; powerplay_enabled:boolean }; squad:{ id:number; name:string; position:string; ca:number }[] };
 
 export const api = {
   newGame: (userClubId?: number) => invoke<NewGameResult>("new_game", { userClubId }),
@@ -30,6 +31,8 @@ export const api = {
   startLive: (matchId: number) => invoke<MatchSnapshot>("start_live_match", { matchId }),
   tickLive: (ticks?: number) => invoke<MatchSnapshot>("tick_live", { ticks }),
   getLive: () => invoke<MatchSnapshot>("get_live_snapshot"),
+  getPreMatch: (matchId: number) => invoke<PreMatch>("get_pre_match", { matchId }),
+  startLiveTactics: (payload: { matchId:number; formation:string; tempo:number; pressing:number; defensiveLine:number; width:number; powerplayEnabled:boolean; lineup:number[] }) => invoke<MatchSnapshot>("start_live_match_tactics", { matchId: payload.matchId, formation: payload.formation, tempo: payload.tempo, pressing: payload.pressing, defensiveLine: payload.defensiveLine, width: payload.width, powerplayEnabled: payload.powerplayEnabled, lineup: payload.lineup }),
   getMarket: () => invoke<MarketPlayer[]>("get_market"),
   getOffers: () => invoke<OfferRow[]>("get_offers"),
   makeOffer: (playerId:number, fee:number) => invoke<string>("make_offer", { playerId, fee }),

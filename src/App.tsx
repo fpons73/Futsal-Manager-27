@@ -7,6 +7,7 @@ import SquadView from "./components/screens/SquadView";
 import StandingsView from "./components/screens/StandingsView";
 import FixturesView from "./components/screens/FixturesView";
 import LiveMatch from "./components/screens/LiveMatch";
+import TacticsSetup from "./components/screens/TacticsSetup";
 import MarketView from "./components/screens/MarketView";
 import InboxView from "./components/screens/InboxView";
 import TrainingView from "./components/screens/TrainingView";
@@ -65,6 +66,23 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function MatchFlow() {
+  const { userClubId } = useStore();
+  const [fixture, setFixture] = useState<any | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [snap, setSnap] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!userClubId) { setLoaded(true); return; }
+    api.getNextFixture(userClubId).then((n)=> setFixture(n)).finally(()=>setLoaded(true));
+  }, [userClubId]);
+
+  if (snap) return <LiveMatch initial={snap} onBackToSetup={()=> setSnap(null)} />;
+  if (!loaded) return <div className="p-8 text-center text-fm-dim">Cargando…</div>;
+  if (!fixture) return <LiveMatch />;
+  return <TacticsSetup matchId={fixture.id} onStart={(s)=> setSnap(s)} onBack={()=> setSnap(null)} />;
+}
+
 export default function App() {
   const { screen } = useStore();
   // Editor accesible incluso sin partida
@@ -88,7 +106,7 @@ export default function App() {
       {screen === "squad" && <SquadView />}
       {screen === "standings" && <StandingsView />}
       {screen === "fixtures" && <FixturesView />}
-      {screen === "tactics" && <LiveMatch />}
+      {screen === "tactics" && <MatchFlow />}
       {screen === "market" && <MarketView />}
       {screen === "inbox" && <InboxView />}
       {screen === "training" && <TrainingView />}

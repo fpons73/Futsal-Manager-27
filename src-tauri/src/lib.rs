@@ -32,6 +32,8 @@ pub fn run() {
       commands::match_live::start_live_match,
       commands::match_live::tick_live,
       commands::match_live::get_live_snapshot,
+      commands::match_live::get_pre_match,
+      commands::match_live::start_live_match_tactics,
       commands::transfer_cmd::get_market,
       commands::transfer_cmd::get_offers,
       commands::transfer_cmd::make_offer,
