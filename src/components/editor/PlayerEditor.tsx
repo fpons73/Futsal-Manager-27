@@ -20,17 +20,17 @@ const LABELS: Record<string, string> = {
   professionalism:"Profesionalidad", consistency:"Regularidad", importantMatches:"Partid. import.", injuryProneness:"Propensión lesión",
 };
 
-// Atributos clave según posición para calcular la Calidad Actual (CA)
-const POS_CORE: Record<string, string[]> = {
-  POR: ["reflexes","handling","oneOnOnes","positioningGk","rushingOut","decisions","positioning","composure"],
-  CIE: ["tackling","marking","interception","blocking","positioning","anticipation","decisions","passing","strength"],
-  ALA: ["dribbling","pace","acceleration","agility","crossing","passing","vision","finishing","workRate"],
-  PIV: ["finishing","technique","composure","positioning","offTheBall","strength","balance","ballControl"],
-  UNI: ["passing","vision","decisions","positioning","workRate","technique","tackling","finishing"],
-};
+// Atributos de habilidad para calcular la Calidad Actual (CA)
+// Se usa la media de TODOS los atributos de habilidad (técnica+mental+físico y portería si es POR),
+// de modo que subir cualquier atributo suba (o no baje) la CA. Se excluyen los ocultos (personalidad).
+const TECHNICAL = ["firstTouch","dribbling","ballControl","technique","passing","vision","crossing","longShots","finishing","heading","penaltyTaking","tackling","marking","interception","blocking"];
+const MENTAL = ["anticipation","decisions","positioning","offTheBall","workRate","composure","concentration","determination","bravery","aggression","leadership","teamwork","flair"];
+const PHYSICAL = ["acceleration","pace","agility","balance","stamina","strength","jumping"];
+const GK = ["reflexes","handling","oneOnOnes","positioningGk","rushingOut","throwing","kicking"];
 
 function calcCA(a: Attr): number {
-  const keys = POS_CORE[a.position] ?? POS_CORE.UNI;
+  let keys = [...TECHNICAL, ...MENTAL, ...PHYSICAL];
+  if (a.position === "POR") keys = keys.concat(GK);
   const vals = keys.map((k) => a[k] ?? 10);
   const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
   return Math.max(1, Math.min(200, Math.round(avg * 5)));
@@ -58,7 +58,13 @@ export default function PlayerEditor({ player, nations, onClose }: { player:any;
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<Attr>("editor_get_player_attributes", { playerId: player.id }).then((a)=>{ setAttrs(a); }).catch((e)=>setMsg(String(e)));
+    invoke<Attr>("editor_get_player_attributes", { playerId: player.id }).then((a)=>{
+      const next = { ...a };
+      const ca = calcCA(next as Attr);
+      next.ca = ca;
+      if (next.pa < ca) next.pa = ca;
+      setAttrs(next);
+    }).catch((e)=>setMsg(String(e)));
   }, [player.id]);
 
   // Al cambiar un atributo, si autoCalc está activo, recalcular CA y ajustar PA

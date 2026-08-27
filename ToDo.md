@@ -32,6 +32,7 @@
 - [x] M21: Agrupación por división en selección de club — `ClubRow` incluye division/tier (ligas) y NewGame agrupa los clubes por país y luego por división (1ª/2ª/3ª/Sin liga) con cabecera de equipos por grupo
 - [x] M22: Acceso directo desde equipo a jugador — en `ClubEditor`, clic en un jugador de la plantilla abre `PlayerEditor` inline; al guardar/cerrar vuelve al editor del equipo
 - [x] M23: Editor jugador en español + CA/CP automática — atributos traducidos a español; CA (Calidad Actual) se calcula automáticamente desde atributos clave por posición (x5 → escala 1-200), CP=Potencial ajustable (≥CA), opción de fijar CA a mano
+- [x] M24: Fix CA monótona — la CA se calcula como media de TODOS los atributos de habilidad (técnica+mental+físico, +portería si POR), excluyendo ocultos; subir cualquier atributo ya no baja la CA. Se recalcula al abrir la ficha.
 
 ---
 
@@ -63,3 +64,4 @@
 | 2026-08-26 | M21 | ClubRow con division/tier; NewGame agrupa por país y, dentro, por división (1ª/2ª/3ª/Sin liga). |
 | 2026-08-26 | M22 | ClubEditor -> clic en jugador de plantilla abre PlayerEditor; al cerrar vuelve al equipo. |
 | 2026-08-26 | M23 | PlayerEditor en español, CA auto (media atributos x5 por posición), CP ajustable, checkbox auto/manual, Recalcular CA. |
+| 2026-08-26 | M24 | CA = media de todos los atributos de habilidad (sin ocultos) → subir cualquier atributo ya no baja la CA; recalculada al abrir. |
