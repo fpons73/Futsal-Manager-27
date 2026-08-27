@@ -5,17 +5,27 @@ import { useStore } from "../../store";
 export default function StandingsView() {
   const { competitions, selectedComp, setSelectedComp, userClubId } = useStore();
   const [rows, setRows] = useState<StandingRow[]>([]);
-  const sel = selectedComp ?? competitions[0]?.id ?? 1;
+  const [kind, setKind] = useState<"clubs" | "selecciones">("clubs");
+  const clubComps = competitions.filter((c)=>c.kind === "club");
+  const natComps = competitions.filter((c)=>c.kind === "national_team");
+  const opts = kind === "clubs" ? clubComps : natComps;
+  const sel = selectedComp && opts.some((c)=>c.id===selectedComp) ? selectedComp : (opts[0]?.id ?? 1);
 
-  useEffect(() => { if (sel) api.getStandings(sel).then(setRows).catch(()=>{}); }, [sel]);
+  useEffect(() => { if (sel) api.getStandings(sel).then(setRows).catch(()=>{}); }, [sel, kind]);
 
   return (
     <div className="mx-auto max-w-5xl p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-black">Clasificación</h2>
-        <select value={sel} onChange={(e) => setSelectedComp(Number(e.target.value))} className="rounded-lg border border-fm-border bg-fm-panel px-3 py-1.5 text-sm">
-          {competitions.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.nation}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-full border border-fm-border bg-fm-panel p-0.5">
+            <button onClick={()=>setKind("clubs")} className={`rounded-full px-3 py-1 text-xs font-bold ${kind==="clubs" ? "bg-fm-accent text-black" : "text-fm-dim"}`}>Clubes</button>
+            <button onClick={()=>setKind("selecciones")} className={`rounded-full px-3 py-1 text-xs font-bold ${kind==="selecciones" ? "bg-fm-accent text-black" : "text-fm-dim"}`}>Selecciones</button>
+          </div>
+          <select value={sel} onChange={(e) => setSelectedComp(Number(e.target.value))} className="rounded-lg border border-fm-border bg-fm-panel px-3 py-1.5 text-sm">
+            {opts.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.nation || "Internacional"}</option>)}
+          </select>
+        </div>
       </div>
       <div className="overflow-hidden rounded-xl border border-fm-border bg-fm-panel">
         <table className="w-full text-sm">

@@ -5,18 +5,26 @@ import { useStore } from "../../store";
 export default function FixturesView() {
   const { competitions, selectedComp, setSelectedComp } = useStore();
   const [rows, setRows] = useState<FixtureRow[]>([]);
-  const sel = selectedComp ?? competitions[0]?.id ?? 1;
-  useEffect(()=>{ if(sel) api.getFixtures(sel).then(setRows).catch(()=>{}); },[sel]);
+  const [kind, setKind] = useState<"clubs" | "selecciones">("clubs");
+  const opts = kind === "clubs" ? competitions.filter((c)=>c.kind === "club") : competitions.filter((c)=>c.kind === "national_team");
+  const sel = selectedComp && opts.some((c)=>c.id===selectedComp) ? selectedComp : (opts[0]?.id ?? 1);
+  useEffect(()=>{ if(sel) api.getFixtures(sel).then(setRows).catch(()=>{}); },[sel, kind]);
 
   const byRound = rows.reduce<Record<number, FixtureRow[]>>((acc, r)=>{ (acc[r.round]??=[]).push(r); return acc; },{});
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-black">Calendario</h2>
-        <select value={sel} onChange={(e)=>setSelectedComp(Number(e.target.value))} className="rounded-lg border border-fm-border bg-fm-panel px-3 py-1.5 text-sm">
-          {competitions.map((c)=><option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-full border border-fm-border bg-fm-panel p-0.5">
+            <button onClick={()=>setKind("clubs")} className={`rounded-full px-3 py-1 text-xs font-bold ${kind==="clubs" ? "bg-fm-accent text-black" : "text-fm-dim"}`}>Clubes</button>
+            <button onClick={()=>setKind("selecciones")} className={`rounded-full px-3 py-1 text-xs font-bold ${kind==="selecciones" ? "bg-fm-accent text-black" : "text-fm-dim"}`}>Selecciones</button>
+          </div>
+          <select value={sel} onChange={(e)=>setSelectedComp(Number(e.target.value))} className="rounded-lg border border-fm-border bg-fm-panel px-3 py-1.5 text-sm">
+            {opts.map((c)=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
       </div>
       <div className="space-y-4">
         {Object.entries(byRound).map(([round, fixtures])=>(

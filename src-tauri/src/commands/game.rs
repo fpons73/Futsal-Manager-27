@@ -27,6 +27,7 @@ pub struct CompRow {
     pub id: i64,
     pub name: String,
     pub nation: String,
+    pub kind: String,
 }
 
 #[derive(Serialize)]
@@ -123,7 +124,7 @@ pub async fn new_game(state: State<'_, AppState>, user_club_id: Option<i64>) -> 
             let (game_date,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
             let (season,): (String,) = sqlx::query_as("SELECT season FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
             let clubs: Vec<ClubRow> = sqlx::query_as("SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY c.reputation DESC").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, short_name, nation, reputation, primary_color): (i64, String, String, String, i64, String)| ClubRow { id, name, short_name, nation, reputation, primary_color }).collect();
-            let comps: Vec<CompRow> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional') FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.id").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, nation): (i64, String, String)| CompRow { id, name, nation }).collect();
+            let comps: Vec<CompRow> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional'), comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.id").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, nation, kind): (i64, String, String, String)| CompRow { id, name, nation, kind }).collect();
             return Ok(NewGameResult { game_date, season, clubs, competitions: comps });
         }
     }
@@ -161,10 +162,10 @@ pub async fn new_game(state: State<'_, AppState>, user_club_id: Option<i64>) -> 
     .into_iter().map(|(id, name, short_name, nation, reputation, primary_color): (i64, String, String, String, i64, String)| ClubRow { id, name, short_name, nation, reputation, primary_color }).collect();
 
     let comps: Vec<CompRow> = sqlx::query_as(
-        "SELECT comp.id, comp.name, COALESCE(n.name,'Internacional') FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.id"
+        "SELECT comp.id, comp.name, COALESCE(n.name,'Internacional'), comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.id"
     )
     .fetch_all(&pool).await.map_err(|e| e.to_string())?
-    .into_iter().map(|(id, name, nation): (i64, String, String)| CompRow { id, name, nation }).collect();
+    .into_iter().map(|(id, name, nation, kind): (i64, String, String, String)| CompRow { id, name, nation, kind }).collect();
 
     Ok(NewGameResult { game_date, season, clubs, competitions: comps })
 }
@@ -264,8 +265,8 @@ pub async fn get_squad(state: State<'_, AppState>, club_id: i64) -> Result<Vec<P
 #[tauri::command]
 pub async fn get_competitions(state: State<'_, AppState>) -> Result<Vec<CompRow>, String> {
     let pool = get_pool(&state).await?;
-    let rows: Vec<(i64, String, String)> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional') FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.id").fetch_all(&pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, name, nation)| CompRow { id, name, nation }).collect())
+    let rows: Vec<(i64, String, String, String)> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional'), comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.id").fetch_all(&pool).await.map_err(|e| e.to_string())?;
+    Ok(rows.into_iter().map(|(id, name, nation, kind)| CompRow { id, name, nation, kind }).collect())
 }
 
 #[tauri::command]

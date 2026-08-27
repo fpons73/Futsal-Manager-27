@@ -61,8 +61,9 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
     let mut comp_ids: Vec<i64> = Vec::new();
     for comp in prd::ALL_COMPS {
         let nid = comp.nation.and_then(|n| nation_ids.get(n).copied());
-        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format) VALUES(?,?,?,?,?,?) RETURNING id")
-            .bind(comp.name).bind(nid).bind(comp.tier).bind(comp.teams).bind(SEASON).bind(if comp.tier.is_some() { "Round Robin" } else { "Cup" })
+        let kind = if comp.nation.is_none() { "national_team" } else { "club" };
+        let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name,nation_id,tier,total_teams,season,format,kind) VALUES(?,?,?,?,?,?,?) RETURNING id")
+            .bind(comp.name).bind(nid).bind(comp.tier).bind(comp.teams).bind(SEASON).bind(if comp.tier.is_some() { "Round Robin" } else { "Cup" }).bind(kind)
             .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
         comp_ids.push(id);
     }
@@ -283,7 +284,7 @@ mod tests {
         let (stadiums,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM stadiums").fetch_one(&pool).await.unwrap();
         assert!(clubs >= 46, "al menos 46 clubes, got {}", clubs);
         assert_eq!(players, clubs * 12, "12 jugadores por club");
-        assert_eq!(comps, 37, "37 competiciones del PRD (19 nacionales + 7 internacionales + 11 extras)");
+        assert_eq!(comps, 43, "43 competiciones del PRD (ligas, copas, 2ª división y selecciones)");
         assert_eq!(stadiums, clubs);
         let (standings,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings").fetch_one(&pool).await.unwrap();
         assert!(standings >= 46, "al menos 46 standings");

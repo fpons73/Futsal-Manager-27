@@ -27,6 +27,7 @@
 - [x] M16: Editor BD — CRUD países/clubes/jugadores/competiciones (backend `editor/mod.rs` + `editor_cmd.rs`, frontend `EditorView`), auto-init `editor_init` (auto-seed), navegación "Editor"
 - [x] M17: Editor estilo FM — escudo por club (subida local base64→fichero + asset protocol), entrenador (staff role 'coach'), cuerpo técnico (staff: coach/assistant/scout/physio), gestión de plantilla (fichar/liberar jugadores por club)
 - [x] M18: Buscadores en todo el editor + editores completos — jugadores (foto + 46 atributos agrupados), staff (foto + atributos), países (bandera + escudo de federación), confederaciones (escudo)
+- [x] M19: 2ª divisiones y más bajas + discriminador Clubes/Selecciones — migración 005 (competitions.kind), Segunda División ES/BR/PT + Vysshaya/A2/FR-D2/AR-2ª, etiquetado kind, toggle Clubes/Selecciones en inicio/clasificación/calendario/editor
 
 ---
 
@@ -53,3 +54,4 @@
 | 2026-08-26 | M16 | Editor: CRUD naciones/clubes/jugadores/competiciones, `editor_init` auto-seed, pestaña Editor en nav, botón NewGame. |
 | 2026-08-26 | M17 | Editor FM: migración 003 (staff + clubs.crest_path/coach_id), subida escudo local, entrenador/staff por club, gestión plantilla (fichar/liberar), asset protocol para escudos. |
 | 2026-08-26 | M18 | Migración 004 (fotos/banderas: players.photo_path, staff.photo_path, nations.flag_path, confederations.crest_path) + ImagePicker, PlayerEditor (atributos), StaffEditor, NationEditor (bandera+federación), buscador por pestaña. |
+| 2026-08-26 | M19 | Migración 005 (competitions.kind) + 2ªs divisiones (ES/BR/PT, Vysshaya, A2, FR-D2, AR-2ª) -> 43 comps; toggle Clubes/Selecciones en inicio y clasificación/calendario. |

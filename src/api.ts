@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export type ClubRow = { id: number; name: string; short_name: string; nation: string; reputation: number; primary_color: string };
-export type CompRow = { id: number; name: string; nation: string };
+export type CompRow = { id: number; name: string; nation: string; kind: string };
 export type NewGameResult = { game_date: string; season: string; clubs: ClubRow[]; competitions: CompRow[] };
 export type GameStateRow = { game_date: string; season: string; user_club_id: number | null; user_club_name: string | null };
 export type StandingRow = { position: number; club_id: number; club_name: string; short_name: string; played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; goal_difference: number; points: number };

@@ -10,7 +10,7 @@ pub struct ClubRow { pub id: i64, pub name: String, pub short_name: String, pub 
 #[derive(Serialize, Deserialize)]
 pub struct PlayerRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub club: String, pub club_id: Option<i64>, pub position: String, pub ca: i64, pub pa: i64, pub age: i64, pub foot: String, pub photo_path: Option<String> }
 #[derive(Serialize, Deserialize)]
-pub struct CompetitionRow { pub id: i64, pub name: String, pub nation: Option<String>, pub nation_id: Option<i64>, pub tier: Option<i64>, pub total_teams: Option<i64>, pub season: String, pub format: String }
+pub struct CompetitionRow { pub id: i64, pub name: String, pub nation: Option<String>, pub nation_id: Option<i64>, pub tier: Option<i64>, pub total_teams: Option<i64>, pub season: String, pub format: String, pub kind: String }
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StaffRow { pub id: i64, pub first_name: String, pub last_name: String, pub common_name: String, pub nation: String, pub nation_id: i64, pub role: String, pub club_id: Option<i64>, pub club_name: Option<String>, pub tactical: i64, pub man_management: i64, pub judging: i64, pub motivating: i64, pub working_youngsters: i64, pub physio_level: i64, pub wage_weekly: f64, pub photo_path: Option<String> }
 
@@ -97,10 +97,10 @@ pub async fn release_player(pool: &SqlitePool, player_id: i64) -> Result<(), Str
     Ok(())
 }
 pub async fn list_competitions(pool: &SqlitePool) -> Result<Vec<CompetitionRow>, String> {
-    let rows = sqlx::query_as::<_, (i64, String, Option<i64>, Option<String>, Option<i64>, Option<i64>, String, String)>(
-        "SELECT comp.id, comp.name, comp.nation_id, n.name, comp.tier, comp.total_teams, comp.season, comp.format FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.tier NULLS LAST, comp.name"
+    let rows = sqlx::query_as::<_, (i64, String, Option<i64>, Option<String>, Option<i64>, Option<i64>, String, String, String)>(
+        "SELECT comp.id, comp.name, comp.nation_id, n.name, comp.tier, comp.total_teams, comp.season, comp.format, comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.tier NULLS LAST, comp.name"
     ).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|(id, name, nation_id, nation, tier, total_teams, season, format)| CompetitionRow { id, name, nation, nation_id, tier, total_teams, season, format }).collect())
+    Ok(rows.into_iter().map(|(id, name, nation_id, nation, tier, total_teams, season, format, kind)| CompetitionRow { id, name, nation, nation_id, tier, total_teams, season, format, kind }).collect())
 }
 pub async fn list_stadiums(pool: &SqlitePool) -> Result<Vec<(i64, String, String, i64)>, String> {
     let rows: Vec<(i64, String, String, i64)> = sqlx::query_as("SELECT s.id, s.name, COALESCE(ci.name,'-'), s.capacity FROM stadiums s LEFT JOIN cities ci ON ci.id=s.city_id ORDER BY s.capacity DESC").fetch_all(pool).await.map_err(|e| e.to_string())?;
@@ -199,7 +199,8 @@ pub async fn update_player(pool: &SqlitePool, id: i64, first: String, last: Stri
     Ok(())
 }
 pub async fn update_competition(pool: &SqlitePool, id: i64, name: String, nation_id: Option<i64>, tier: Option<i64>, teams: i64, season: String) -> Result<(), String> {
-    sqlx::query("UPDATE competitions SET name=?, nation_id=?, tier=?, total_teams=?, season=? WHERE id=?").bind(name).bind(nation_id).bind(tier).bind(teams).bind(season).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
+    let kind = if nation_id.is_none() { "national_team" } else { "club" };
+    sqlx::query("UPDATE competitions SET name=?, nation_id=?, tier=?, total_teams=?, season=?, kind=? WHERE id=?").bind(name).bind(nation_id).bind(tier).bind(teams).bind(season).bind(kind).bind(id).execute(pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 pub async fn delete_club(pool: &SqlitePool, id: i64) -> Result<(), String> {
@@ -236,7 +237,8 @@ pub async fn delete_player(pool: &SqlitePool, id: i64) -> Result<(), String> {
     Ok(())
 }
 pub async fn create_competition(pool: &SqlitePool, name: String, nation_id: Option<i64>, tier: Option<i64>, teams: i64, season: String) -> Result<i64, String> {
-    let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name, nation_id, tier, total_teams, season) VALUES(?,?,?,?,?) RETURNING id").bind(name).bind(nation_id).bind(tier).bind(teams).bind(season).fetch_one(pool).await.map_err(|e| e.to_string())?;
+    let kind = if nation_id.is_none() { "national_team" } else { "club" };
+    let (id,): (i64,) = sqlx::query_as("INSERT INTO competitions(name, nation_id, tier, total_teams, season, kind) VALUES(?,?,?,?,?,?) RETURNING id").bind(name).bind(nation_id).bind(tier).bind(teams).bind(season).bind(kind).fetch_one(pool).await.map_err(|e| e.to_string())?;
     Ok(id)
 }
 pub async fn delete_competition(pool: &SqlitePool, id: i64) -> Result<(), String> {

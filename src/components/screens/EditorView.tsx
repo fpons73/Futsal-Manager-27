@@ -131,7 +131,7 @@ export default function EditorView() {
     <div className="mx-auto max-w-7xl space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-black">Editor — Base de Datos</h2>
-        <span className="rounded-full bg-fm-accent px-3 py-1 text-xs font-bold text-black">37 competiciones · 26 naciones</span>
+        <span className="rounded-full bg-fm-accent px-3 py-1 text-xs font-bold text-black">43 competiciones · 26 naciones</span>
       </div>
 
       <div className="flex flex-wrap gap-1">
@@ -288,9 +288,9 @@ export default function EditorView() {
               <div className="overflow-hidden rounded-xl border border-fm-border bg-fm-panel">
                 <div className="max-h-[26rem] overflow-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-fm-bg text-xs uppercase tracking-widest text-fm-dim"><tr><th className="px-2 py-2 text-left">Competición</th><th className="px-2 py-2">Nación</th><th className="px-2 py-2">Tier</th><th className="px-2 py-2">Equipos</th><th className="px-2 py-2">Temp.</th><th></th></tr></thead>
+                    <thead className="sticky top-0 bg-fm-bg text-xs uppercase tracking-widest text-fm-dim"><tr><th className="px-2 py-2 text-left">Competición</th><th className="px-2 py-2">Tipo</th><th className="px-2 py-2">Nación</th><th className="px-2 py-2">Tier</th><th className="px-2 py-2">Equipos</th><th className="px-2 py-2">Temp.</th><th></th></tr></thead>
                     <tbody>{filtered.map((c:any)=><tr key={c.id} className="border-t border-fm-border hover:bg-fm-panel2">
-                      <td className="px-2 py-1.5 font-semibold">{c.name}</td><td className="px-2 py-1.5 text-xs">{c.nation || "—"}</td><td className="px-2 py-1.5 text-center">{c.tier ?? "—"}</td><td className="px-2 py-1.5 text-center">{c.total_teams ?? "—"}</td><td className="px-2 py-1.5 text-xs">{c.season}</td>
+                      <td className="px-2 py-1.5 font-semibold">{c.name}</td><td className="px-2 py-1.5 text-center"><span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${c.kind==="national_team" ? "bg-violet-500/20 text-violet-300" : "bg-sky-500/20 text-sky-300"}`}>{c.kind==="national_team" ? "Sel." : "Club"}</span></td><td className="px-2 py-1.5 text-xs">{c.nation || "—"}</td><td className="px-2 py-1.5 text-center">{c.tier ?? "—"}</td><td className="px-2 py-1.5 text-center">{c.total_teams ?? "—"}</td><td className="px-2 py-1.5 text-xs">{c.season}</td>
                       <td className="px-2 py-1.5 text-right space-x-1"><button onClick={()=>setNewComp({ id: c.id, name: c.name, nation: c.nation_id ? String(c.nation_id) : "", tier: c.tier ? String(c.tier) : "", teams: c.total_teams ?? 16, season: c.season })} className="rounded bg-sky-600 px-2 py-0.5 text-xs text-white">Editar</button><button onClick={()=>delComp(c.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">Borrar</button></td>
                     </tr>)}</tbody>
                   </table>
