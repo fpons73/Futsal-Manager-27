@@ -66,40 +66,40 @@ pub struct PlayerAttrs {
 
 impl PlayerAttrs {
     pub fn average(ca: i64, role: Role) -> Self {
-        let base = (ca as f32 / 10.0).clamp(4.0, 18.0);
+        let base = (ca as f32 / 2.0).clamp(0.0, 100.0);
         let mut rng = StdRng::from_entropy();
-        let jitter = |rng: &mut StdRng| rng.gen_range(-1.5..1.5);
-        let mut mk = |bonus: f32| (base + bonus + jitter(&mut rng)).clamp(1.0, 20.0);
+        let jitter = |rng: &mut StdRng| rng.gen_range(-6.0..6.0);
+        let mut mk = |bonus: f32| (base + bonus + jitter(&mut rng)).clamp(0.0, 100.0);
         match role {
             Role::POR => Self {
-                passing: mk(-1.0), finishing: mk(-3.0), dribbling: mk(-2.0),
-                tackling: mk(-2.0), vision: mk(0.0), anticipation: mk(1.0),
-                positioning: mk(2.0), stamina: mk(0.0), acceleration: mk(0.0),
-                pace: mk(0.0), composure: mk(1.0), technique: mk(0.0), reflexes: mk(4.0),
+                passing: mk(-5.0), finishing: mk(-15.0), dribbling: mk(-10.0),
+                tackling: mk(-10.0), vision: mk(0.0), anticipation: mk(5.0),
+                positioning: mk(10.0), stamina: mk(0.0), acceleration: mk(0.0),
+                pace: mk(0.0), composure: mk(5.0), technique: mk(0.0), reflexes: mk(20.0),
             },
             Role::CIE => Self {
-                passing: mk(1.0), finishing: mk(-1.5), dribbling: mk(0.0),
-                tackling: mk(3.0), vision: mk(1.0), anticipation: mk(2.0),
-                positioning: mk(3.0), stamina: mk(1.0), acceleration: mk(0.5),
-                pace: mk(0.5), composure: mk(0.5), technique: mk(0.5), reflexes: mk(-4.0),
+                passing: mk(5.0), finishing: mk(-7.5), dribbling: mk(0.0),
+                tackling: mk(15.0), vision: mk(5.0), anticipation: mk(10.0),
+                positioning: mk(15.0), stamina: mk(5.0), acceleration: mk(2.5),
+                pace: mk(2.5), composure: mk(2.5), technique: mk(2.5), reflexes: mk(-20.0),
             },
             Role::ALA => Self {
-                passing: mk(1.0), finishing: mk(0.5), dribbling: mk(2.5),
-                tackling: mk(-1.0), vision: mk(1.0), anticipation: mk(0.5),
-                positioning: mk(0.0), stamina: mk(1.0), acceleration: mk(2.0),
-                pace: mk(2.0), composure: mk(0.5), technique: mk(1.5), reflexes: mk(-4.0),
+                passing: mk(5.0), finishing: mk(2.5), dribbling: mk(12.5),
+                tackling: mk(-5.0), vision: mk(5.0), anticipation: mk(2.5),
+                positioning: mk(0.0), stamina: mk(5.0), acceleration: mk(10.0),
+                pace: mk(10.0), composure: mk(2.5), technique: mk(7.5), reflexes: mk(-20.0),
             },
             Role::PIV => Self {
-                passing: mk(0.0), finishing: mk(3.0), dribbling: mk(0.5),
-                tackling: mk(-2.0), vision: mk(0.0), anticipation: mk(0.5),
-                positioning: mk(0.5), stamina: mk(0.5), acceleration: mk(0.0),
-                pace: mk(0.0), composure: mk(1.5), technique: mk(1.5), reflexes: mk(-4.0),
+                passing: mk(0.0), finishing: mk(15.0), dribbling: mk(2.5),
+                tackling: mk(-10.0), vision: mk(0.0), anticipation: mk(2.5),
+                positioning: mk(2.5), stamina: mk(2.5), acceleration: mk(0.0),
+                pace: mk(0.0), composure: mk(7.5), technique: mk(7.5), reflexes: mk(-20.0),
             },
             Role::UNI => Self {
-                passing: mk(1.0), finishing: mk(0.5), dribbling: mk(1.0),
-                tackling: mk(0.5), vision: mk(1.0), anticipation: mk(1.0),
-                positioning: mk(1.0), stamina: mk(1.0), acceleration: mk(1.0),
-                pace: mk(1.0), composure: mk(0.5), technique: mk(1.0), reflexes: mk(-2.0),
+                passing: mk(5.0), finishing: mk(2.5), dribbling: mk(5.0),
+                tackling: mk(2.5), vision: mk(5.0), anticipation: mk(5.0),
+                positioning: mk(5.0), stamina: mk(5.0), acceleration: mk(5.0),
+                pace: mk(5.0), composure: mk(2.5), technique: mk(5.0), reflexes: mk(-10.0),
             },
         }
     }
@@ -377,10 +377,10 @@ impl MatchEngine {
     fn update_stamina(&mut self, dt: f32) {
         for p in &mut self.players {
             if !p.on_pitch { continue; }
-            let drain = if Some(p.id) == self.ball_holder { 0.09 } else { 0.04 };
-            p.stamina_now -= drain * dt * (1.5 - p.attrs.stamina / 40.0);
+            let drain = if Some(p.id) == self.ball_holder { 0.10 } else { 0.06 };
+            p.stamina_now -= drain * dt * (1.5 - p.attrs.stamina / 100.0);
             if Some(p.id) != self.ball_holder {
-                p.stamina_now += 0.02 * dt;
+                p.stamina_now += 0.015 * dt;
             }
             p.stamina_now = p.stamina_now.clamp(0.0, 100.0);
         }
@@ -436,7 +436,7 @@ impl MatchEngine {
         let dist_to_goal = ((holder_x - goal_x).abs().powi(2) + (holder_y - 10.0).powi(2)).sqrt();
         let angle = ((10.0 - holder_y).abs() / dist_to_goal.max(1.0)).asin().to_degrees().abs();
 
-        let do_shoot = dist_to_goal < 12.0 && self.rng.gen_bool( (0.35 + (holder_attrs.finishing / 60.0)) as f64 );
+        let do_shoot = dist_to_goal < 12.0 && self.rng.gen_bool( ((0.30 + (holder_attrs.finishing * 0.005)).min(0.95)) as f64 );
         if do_shoot {
             self.shots[holder_team as usize] += 1;
             let prob = calculate_goal_probability(&holder_attrs, dist_to_goal, angle, is_powerplay);
@@ -444,7 +444,7 @@ impl MatchEngine {
             let effective = (prob * noise).clamp(0.0, 0.95);
             let roll: f32 = self.rng.gen();
             let gk = self.players.iter().filter(|p| p.team_id == opp_team && p.role == Role::POR && p.on_pitch).next();
-            let gk_mod = gk.map(|g| 1.0 - g.attrs.reflexes / 40.0).unwrap_or(1.0);
+            let gk_mod = gk.map(|g| 1.0 - g.attrs.reflexes / 100.0).unwrap_or(1.0);
             let final_prob = effective * gk_mod;
 
             if roll < final_prob * 0.55 {
@@ -501,7 +501,7 @@ impl MatchEngine {
                 if is_sixth {
                     let dp_prob = 0.72;
                     let roll: f32 = self.rng.gen();
-                    if roll < dp_prob * (holder_attrs.composure / 20.0) {
+                    if roll < dp_prob * (holder_attrs.composure / 100.0) {
                         self.score[holder_team as usize] += 1;
                         self.events.push(MatchEvent {
                             minute: self.time / 60, second: self.time % 60, kind: "double_penalty_goal".into(),
@@ -625,7 +625,7 @@ fn resolve_duel(attacker: &PlayerAttrs, defender: &PlayerAttrs, action: &str, rn
 fn calculate_goal_probability(shooter: &PlayerAttrs, distance: f32, angle: f32, is_powerplay: bool) -> f32 {
     let base = if distance < 3.0 { 0.68 } else if distance < 6.0 { 0.38 } else if distance < 10.0 { 0.18 } else { 0.05 };
     let angle_mod = (angle / 90.0).clamp(0.2, 1.0);
-    let skill = (shooter.finishing / 20.0) * 0.5 + (shooter.composure / 20.0) * 0.3 + (shooter.technique / 20.0) * 0.2;
+    let skill = (shooter.finishing / 100.0) * 0.5 + (shooter.composure / 100.0) * 0.3 + (shooter.technique / 100.0) * 0.2;
     let pp = if is_powerplay { 1.25 } else { 1.0 };
     (base * angle_mod * (0.5 + skill) * pp).clamp(0.02, 0.85)
 }

@@ -33,6 +33,7 @@
 - [x] M22: Acceso directo desde equipo a jugador — en `ClubEditor`, clic en un jugador de la plantilla abre `PlayerEditor` inline; al guardar/cerrar vuelve al editor del equipo
 - [x] M23: Editor jugador en español + CA/CP automática — atributos traducidos a español; CA (Calidad Actual) se calcula automáticamente desde atributos clave por posición (x5 → escala 1-200), CP=Potencial ajustable (≥CA), opción de fijar CA a mano
 - [x] M24: Fix CA monótona — la CA se calcula como media de TODOS los atributos de habilidad (técnica+mental+físico, +portería si POR), excluyendo ocultos; subir cualquier atributo ya no baja la CA. Se recalcula al abrir la ficha.
+- [x] M25: Atributos 0-100 — migración 006 rescala atributos ×5 (0-100); seed, motor (divisores /100, average 0-100), editor (inputs 0-100, defaults 50, CA=media×2) y creación de jugadores con 50 por defecto. Motor re-tunado (stamina / fatiga).
 
 ---
 
@@ -65,3 +66,4 @@
 | 2026-08-26 | M22 | ClubEditor -> clic en jugador de plantilla abre PlayerEditor; al cerrar vuelve al equipo. |
 | 2026-08-26 | M23 | PlayerEditor en español, CA auto (media atributos x5 por posición), CP ajustable, checkbox auto/manual, Recalcular CA. |
 | 2026-08-26 | M24 | CA = media de todos los atributos de habilidad (sin ocultos) → subir cualquier atributo ya no baja la CA; recalculada al abrir. |
+| 2026-08-26 | M25 | Atributos a escala 0-100 (migración 006, seed, motor, editor inputs 0-100, defaults 50, CA=media×2). |

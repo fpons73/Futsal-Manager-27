@@ -31,17 +31,18 @@ const GK = ["reflexes","handling","oneOnOnes","positioningGk","rushingOut","thro
 function calcCA(a: Attr): number {
   let keys = [...TECHNICAL, ...MENTAL, ...PHYSICAL];
   if (a.position === "POR") keys = keys.concat(GK);
-  const vals = keys.map((k) => a[k] ?? 10);
+  const vals = keys.map((k) => a[k] ?? 50);
   const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-  return Math.max(1, Math.min(200, Math.round(avg * 5)));
+  return Math.max(1, Math.min(200, Math.round(avg * 2)));
 }
 
-function Num({ label, v, onChange, auto }: { label:string; v:number; onChange:(n:number)=>void; auto?: boolean }) {
+function Num({ label, v, onChange, auto, max = 100 }: { label:string; v:number; onChange:(n:number)=>void; auto?: boolean; max?: number }) {
+  const clamp = (n:number) => Math.max(0, Math.min(max, n));
   return (
     <label className="flex flex-col">
       <span className="text-[10px] uppercase tracking-wider text-fm-dim">{label}</span>
       <div className="flex items-center gap-1">
-        <input type="number" min={1} max={200} value={v} onChange={(e)=>onChange(Number(e.target.value))} className="w-16 rounded border border-fm-border bg-fm-bg px-1.5 py-1 font-mono text-sm" />
+        <input type="number" min={0} max={max} value={v} onChange={(e)=>onChange(clamp(Number(e.target.value)))} className="w-16 rounded border border-fm-border bg-fm-bg px-1.5 py-1 font-mono text-sm" />
       </div>
       {auto && <span className="text-[9px] text-fm-accent">auto</span>}
     </label>
@@ -129,8 +130,8 @@ export default function PlayerEditor({ player, nations, onClose }: { player:any;
                 {["POR","CIE","ALA","PIV","UNI"].map((p)=> <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <Num label="CA (Calidad Actual)" v={attrs.ca} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), ca: n }) : a)} auto={autoCalc} />
-            <Num label="CP (Potencial)" v={attrs.pa} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), pa: n }) : a)} />
+            <Num label="CA (Calidad Actual)" v={attrs.ca} max={200} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), ca: n }) : a)} auto={autoCalc} />
+            <Num label="CP (Potencial)" v={attrs.pa} max={200} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), pa: n }) : a)} />
           </div>
           <label className="flex items-center gap-2 text-xs text-fm-dim">
             <input type="checkbox" checked={autoCalc} onChange={(e)=>setAutoCalc(e.target.checked)} className="accent-fm-accent" />
@@ -141,7 +142,7 @@ export default function PlayerEditor({ player, nations, onClose }: { player:any;
             <div key={group}>
               <div className="mb-1 text-xs font-bold uppercase tracking-widest text-fm-dim">{group}</div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-                {keys.map((k)=> <Num key={k} label={LABELS[k] ?? k} v={attrs[k] ?? 10} onChange={(n)=>applyAttr(k, n)} />)}
+                {keys.map((k)=> <Num key={k} label={LABELS[k] ?? k} v={attrs[k] ?? 50} onChange={(n)=>applyAttr(k, n)} />)}
               </div>
             </div>
           ))}
