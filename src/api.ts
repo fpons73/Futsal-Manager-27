@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type ClubRow = { id: number; name: string; short_name: string; nation: string; reputation: number; primary_color: string };
+export type ClubRow = { id: number; name: string; short_name: string; nation: string; reputation: number; primary_color: string; division: string; tier: number | null };
 export type CompRow = { id: number; name: string; nation: string; kind: string };
 export type NewGameResult = { game_date: string; season: string; clubs: ClubRow[]; competitions: CompRow[] };
 export type GameStateRow = { game_date: string; season: string; user_club_id: number | null; user_club_name: string | null };

@@ -29,6 +29,7 @@
 - [x] M18: Buscadores en todo el editor + editores completos — jugadores (foto + 46 atributos agrupados), staff (foto + atributos), países (bandera + escudo de federación), confederaciones (escudo)
 - [x] M19: 2ª divisiones y más bajas + discriminador Clubes/Selecciones — migración 005 (competitions.kind), Segunda División ES/BR/PT + Vysshaya/A2/FR-D2/AR-2ª, etiquetado kind, toggle Clubes/Selecciones en inicio/clasificación/calendario/editor
 - [x] M20: Clubes reales por división — el seed genera clubes distintos por nación (suma de equipos por división) y asigna cada liga su propio grupo: España 92 clubes (Primera 16 + Segunda 16 + 6×Segunda B 60), sin solapamiento entre divisiones. 370 clubes / +4400 jugadores en total
+- [x] M21: Agrupación por división en selección de club — `ClubRow` incluye division/tier (ligas) y NewGame agrupa los clubes por país y luego por división (1ª/2ª/3ª/Sin liga) con cabecera de equipos por grupo
 
 ---
 
@@ -57,3 +58,4 @@
 | 2026-08-26 | M18 | Migración 004 (fotos/banderas: players.photo_path, staff.photo_path, nations.flag_path, confederations.crest_path) + ImagePicker, PlayerEditor (atributos), StaffEditor, NationEditor (bandera+federación), buscador por pestaña. |
 | 2026-08-26 | M19 | Migración 005 (competitions.kind) + 2ªs divisiones (ES/BR/PT, Vysshaya, A2, FR-D2, AR-2ª) -> 43 comps; toggle Clubes/Selecciones en inicio y clasificación/calendario. |
 | 2026-08-26 | M20 | Seed con pirámide real: clubes por nación = suma de equipos de sus divisiones; cada división con su propio grupo de clubes (España 92). Test verifica 16/16/60 sin solapamiento. |
+| 2026-08-26 | M21 | ClubRow con division/tier; NewGame agrupa por país y, dentro, por división (1ª/2ª/3ª/Sin liga). |

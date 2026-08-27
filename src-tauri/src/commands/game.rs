@@ -20,6 +20,8 @@ pub struct ClubRow {
     pub nation: String,
     pub reputation: i64,
     pub primary_color: String,
+    pub division: String,
+    pub tier: Option<i64>,
 }
 
 #[derive(Serialize, Clone)]
@@ -123,7 +125,7 @@ pub async fn new_game(state: State<'_, AppState>, user_club_id: Option<i64>) -> 
             }
             let (game_date,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
             let (season,): (String,) = sqlx::query_as("SELECT season FROM game_state WHERE id=1").fetch_one(&existing).await.map_err(|e| e.to_string())?;
-            let clubs: Vec<ClubRow> = sqlx::query_as("SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY c.reputation DESC").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, short_name, nation, reputation, primary_color): (i64, String, String, String, i64, String)| ClubRow { id, name, short_name, nation, reputation, primary_color }).collect();
+            let clubs: Vec<ClubRow> = sqlx::query_as("SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color, COALESCE((SELECT comp.name FROM league_standings ls JOIN competitions comp ON comp.id=ls.competition_id WHERE ls.club_id=c.id AND comp.tier IS NOT NULL ORDER BY comp.tier LIMIT 1),'Sin liga') AS division, (SELECT comp.tier FROM league_standings ls JOIN competitions comp ON comp.id=ls.competition_id WHERE ls.club_id=c.id AND comp.tier IS NOT NULL ORDER BY comp.tier LIMIT 1) AS tier FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY n.name, tier, c.reputation DESC").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, short_name, nation, reputation, primary_color, division, tier): (i64, String, String, String, i64, String, String, Option<i64>)| ClubRow { id, name, short_name, nation, reputation, primary_color, division, tier }).collect();
             let comps: Vec<CompRow> = sqlx::query_as("SELECT comp.id, comp.name, COALESCE(n.name,'Internacional'), comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.id").fetch_all(&existing).await.map_err(|e| e.to_string())?.into_iter().map(|(id, name, nation, kind): (i64, String, String, String)| CompRow { id, name, nation, kind }).collect();
             return Ok(NewGameResult { game_date, season, clubs, competitions: comps });
         }
@@ -156,10 +158,10 @@ pub async fn new_game(state: State<'_, AppState>, user_club_id: Option<i64>) -> 
     let (season,): (String,) = sqlx::query_as("SELECT season FROM game_state WHERE id=1").fetch_one(&pool).await.map_err(|e| e.to_string())?;
 
     let clubs: Vec<ClubRow> = sqlx::query_as(
-        "SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY c.reputation DESC"
+        "SELECT c.id, c.name, c.short_name, n.name, c.reputation, c.primary_color, COALESCE((SELECT comp.name FROM league_standings ls JOIN competitions comp ON comp.id=ls.competition_id WHERE ls.club_id=c.id AND comp.tier IS NOT NULL ORDER BY comp.tier LIMIT 1),'Sin liga') AS division, (SELECT comp.tier FROM league_standings ls JOIN competitions comp ON comp.id=ls.competition_id WHERE ls.club_id=c.id AND comp.tier IS NOT NULL ORDER BY comp.tier LIMIT 1) AS tier FROM clubs c JOIN nations n ON n.id=c.nation_id ORDER BY n.name, tier, c.reputation DESC"
     )
     .fetch_all(&pool).await.map_err(|e| e.to_string())?
-    .into_iter().map(|(id, name, short_name, nation, reputation, primary_color): (i64, String, String, String, i64, String)| ClubRow { id, name, short_name, nation, reputation, primary_color }).collect();
+    .into_iter().map(|(id, name, short_name, nation, reputation, primary_color, division, tier): (i64, String, String, String, i64, String, String, Option<i64>)| ClubRow { id, name, short_name, nation, reputation, primary_color, division, tier }).collect();
 
     let comps: Vec<CompRow> = sqlx::query_as(
         "SELECT comp.id, comp.name, COALESCE(n.name,'Internacional'), comp.kind FROM competitions comp LEFT JOIN nations n ON n.id=comp.nation_id ORDER BY comp.kind, comp.id"
