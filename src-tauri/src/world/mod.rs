@@ -71,46 +71,50 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
     let mut rng = StdRng::from_entropy();
     let base_date = NaiveDate::parse_from_str(GAME_DATE, "%Y-%m-%d").unwrap();
 
-    // Mapear nación -> clubes a crear (solo para ligas, no copas)
-    // Para simplificar, creamos clubes para cada nación que tiene al menos una liga (tier Some)
-    // El número de clubes por nación = máximo total_teams de sus ligas
-    let mut nation_max_teams: std::collections::HashMap<String, i64> = Default::default();
+    // Para cada nación con ligas, cuántos clubes DISTINTOS hacen falta y sus divisiones (tier asc)
+    let mut nation_divisions: std::collections::HashMap<String, Vec<i64>> = Default::default(); // nation -> [teams por tier asc]
     for comp in prd::ALL_COMPS {
         if let Some(nation) = comp.nation {
             if comp.tier.is_some() {
-                let entry = nation_max_teams.entry(nation.to_string()).or_insert(0);
-                *entry = (*entry).max(comp.teams);
+                nation_divisions.entry(nation.to_string()).or_default().push(comp.teams);
             }
         }
     }
+    let nation_needed: std::collections::HashMap<String, i64> = nation_divisions.iter().map(|(n, ts)| (n.clone(), ts.iter().sum())).collect();
 
     struct OwnedClub { name: String, short: String, city: String, stadium: String, capacity: i64, rep: i64, c1: String, c2: String, nid: i64, nation: String }
     let mut clubs_to_create: Vec<OwnedClub> = Vec::new();
-    for c in SPAIN_CLUBS {
-        if let Some(&nid) = nation_ids.get("España") {
-            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "España".into() });
-        }
+    let mut created_by_nation: std::collections::HashMap<String, usize> = Default::default();
+
+    // España
+    if let Some(&nid) = nation_ids.get("España") {
+        for c in SPAIN_CLUBS { clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "España".into() }); }
+        created_by_nation.insert("España".into(), SPAIN_CLUBS.len());
     }
-    for c in BRAZIL_CLUBS {
-        if let Some(&nid) = nation_ids.get("Brasil") {
-            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Brasil".into() });
-        }
+    // Brasil
+    if let Some(&nid) = nation_ids.get("Brasil") {
+        for c in BRAZIL_CLUBS { clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Brasil".into() }); }
+        created_by_nation.insert("Brasil".into(), BRAZIL_CLUBS.len());
     }
-    for c in PORTUGAL_CLUBS {
-        if let Some(&nid) = nation_ids.get("Portugal") {
-            clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Portugal".into() });
-        }
+    // Portugal
+    if let Some(&nid) = nation_ids.get("Portugal") {
+        for c in PORTUGAL_CLUBS { clubs_to_create.push(OwnedClub { name: c.name.into(), short: c.short.into(), city: c.city.into(), stadium: c.stadium.into(), capacity: c.capacity, rep: c.reputation, c1: c.color.into(), c2: c.color2.into(), nid, nation: "Portugal".into() }); }
+        created_by_nation.insert("Portugal".into(), PORTUGAL_CLUBS.len());
     }
-    for (nation, max_teams) in &nation_max_teams {
-        if ["España","Brasil","Portugal"].contains(&nation.as_str()) { continue; }
-        let nid = match nation_ids.get(nation.as_str()) { Some(v) => *v, None => continue };
-        let count = *max_teams as usize;
-        for i in 0..count {
-            let rep = (720 - (i as i64 * 12)).max(500);
+    // Rellenar hasta el número necesario por nación (divisiones inferiores) con clubes genéricos
+    for (nation, &needed) in &nation_needed {
+        let nid = match nation_ids.get(nation) { Some(v) => *v, None => continue };
+        let have = *created_by_nation.get(nation.as_str()).unwrap_or(&0);
+        let start_rep = if ["España","Brasil","Portugal"].contains(&nation.as_str()) { 700 } else { 720 };
+        for i in have..(needed as usize) {
+            // reputación descendente para que la 1ª división quede con los mejores
+            let rep = (start_rep - ((i as i64) * 8)).max(480);
+            let city_name = format!("{} Capital", nation);
+            let first2 = nation.chars().take(3).collect::<String>().to_uppercase();
             clubs_to_create.push(OwnedClub {
                 name: format!("{} Futsal {}", nation, i+1),
-                short: format!("{}{}", nation[..2.min(nation.len())].to_uppercase(), i+1),
-                city: format!("{} Capital", nation),
+                short: format!("{}{}", first2, i+1),
+                city: city_name.clone(),
                 stadium: format!("{} Arena {}", nation, i+1),
                 capacity: 1500 + (rep % 3000), rep, c1: "#0f4c3a".into(), c2: "#ffffff".into(), nid, nation: nation.clone(),
             });
@@ -119,6 +123,7 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
 
     let mut club_ids: Vec<i64> = Vec::new();
     let mut club_nation: Vec<String> = Vec::new();
+    let mut club_rep: Vec<i64> = Vec::new();
 
     for oc in clubs_to_create {
         let city_id = city_ids.get(&oc.city).copied().unwrap_or_else(|| *city_ids.values().next().unwrap());
@@ -130,6 +135,7 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
             .fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
         club_ids.push(club_id);
         club_nation.push(oc.nation.clone());
+        club_rep.push(oc.rep);
         let balance = (oc.rep as f64) * 1800.0 + rng.gen_range(50_000.0..250_000.0);
         let wage_budget = (oc.rep as f64) * 12.0 + 2000.0;
         sqlx::query("INSERT INTO club_finances(club_id,balance,transfer_budget,wage_budget,total_wages) VALUES(?,?,?,?,0)").bind(club_id).bind(balance).bind(balance*0.25).bind(wage_budget).execute(&mut *tx).await.map_err(|e| e.to_string())?;
@@ -144,20 +150,25 @@ pub async fn seed_world(pool: &SqlitePool) -> Result<(), String> {
         sqlx::query("INSERT OR IGNORE INTO youth_academy(club_id, level) VALUES(?,50)").bind(club_id).execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
-    // Crear standings solo para ligas (tier Some)
-    // Necesitamos mapear comp -> clubes de esa nación
-    // Para cada liga, tomar N clubes de esa nación (los más reputados)
-    let mut nation_clubs: std::collections::HashMap<String, Vec<i64>> = Default::default();
+    // Agrupar clubes por nación, ordenados por reputación desc
+    let mut nation_clubs: std::collections::HashMap<String, Vec<(i64, i64)>> = Default::default();
     for (idx, cid) in club_ids.iter().enumerate() {
-        let nat = &club_nation[idx];
-        nation_clubs.entry(nat.clone()).or_default().push(*cid);
+        nation_clubs.entry(club_nation[idx].clone()).or_default().push((*cid, club_rep[idx]));
     }
-    for comp in prd::ALL_COMPS {
-        if comp.tier.is_none() { continue; }
+    for v in nation_clubs.values_mut() { v.sort_by(|a, b| b.1.cmp(&a.1)); }
+
+    // Asignar a CADA división su propio tramo de clubes (tier asc -> slice consecutivo)
+    let mut offset_by_nation: std::collections::HashMap<String, usize> = Default::default();
+    let mut comps_tiered: Vec<&prd::CompDef> = prd::ALL_COMPS.iter().filter(|c| c.tier.is_some()).collect();
+    comps_tiered.sort_by_key(|c| (c.nation.unwrap_or(""), c.tier.unwrap_or(0)));
+    for comp in comps_tiered {
         let nation = match comp.nation { Some(n) => n, None => continue };
         let clubs_for_nation = match nation_clubs.get(nation) { Some(v) => v, None => continue };
-        let take = (comp.teams as usize).min(clubs_for_nation.len());
-        let selected: Vec<i64> = clubs_for_nation.iter().take(take).copied().collect();
+        let offset = *offset_by_nation.get(nation).unwrap_or(&0);
+        let take = (comp.teams as usize).min(clubs_for_nation.len().saturating_sub(offset));
+        let selected: Vec<i64> = clubs_for_nation.iter().skip(offset).take(take).map(|(id, _)| *id).collect();
+        offset_by_nation.insert(nation.to_string(), offset + take);
+        if selected.is_empty() { continue; }
         let comp_id: i64 = sqlx::query_as::<_, (i64,)>("SELECT id FROM competitions WHERE name=? AND season=?").bind(comp.name).bind(SEASON).fetch_one(&mut *tx).await.map_err(|e| e.to_string())?.0;
         for &club in &selected {
             sqlx::query("INSERT INTO league_standings(competition_id,season,club_id,position,played,won,drawn,lost,goals_for,goals_against,goal_difference,points,form_last_5) VALUES(?,?,?,?,0,0,0,0,0,0,0,0,'')").bind(comp_id).bind(SEASON).bind(club).bind(0).execute(&mut *tx).await.map_err(|e| e.to_string())?;
@@ -296,6 +307,21 @@ mod tests {
         assert!(matches >= 662, "al menos 662 partidos, got {}", matches);
         let (d0,): (String,) = sqlx::query_as("SELECT game_date FROM game_state WHERE id=1").fetch_one(&pool).await.unwrap();
         assert_eq!(d0, "2026-07-10");
+
+        // Verificar que las divisiones españolas tienen clubes distintos (pirámide completa)
+        let (primera,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings WHERE competition_id=(SELECT id FROM competitions WHERE name='Primera División de Fútbol Sala')").fetch_one(&pool).await.unwrap();
+        let (segunda,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings WHERE competition_id=(SELECT id FROM competitions WHERE name='Segunda División de Fútbol Sala')").fetch_one(&pool).await.unwrap();
+        assert_eq!(primera, 16, "Primera española 16 equipos");
+        assert_eq!(segunda, 16, "Segunda española 16 equipos");
+        let (overlap,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM league_standings a JOIN league_standings b ON a.club_id=b.club_id WHERE a.competition_id=(SELECT id FROM competitions WHERE name='Primera División de Fútbol Sala') AND b.competition_id=(SELECT id FROM competitions WHERE name='Segunda División de Fútbol Sala')"
+        ).fetch_one(&pool).await.unwrap();
+        assert_eq!(overlap, 0, "Primera y Segunda no comparten clubes");
+        // Segunda B total (6 grupos)
+        let (sb,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM league_standings WHERE competition_id IN (SELECT id FROM competitions WHERE name LIKE 'Segunda División B - Grupo%')").fetch_one(&pool).await.unwrap();
+        assert_eq!(sb, 60, "Segunda B española 6 grupos x 10 = 60 equipos");
+        let (esp_clubs,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM clubs c JOIN nations n ON n.id=c.nation_id WHERE n.name='España'").fetch_one(&pool).await.unwrap();
+        assert_eq!(esp_clubs, 92, "España 92 clubes (16+16+60)");
     }
 }
 
