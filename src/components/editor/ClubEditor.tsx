@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ImagePicker from "./ImagePicker";
+import PlayerEditor from "./PlayerEditor";
 
 type Staff = { id: number; first_name: string; last_name: string; common_name: string; nation: string; nation_id: number; role: string; club_id: number | null; club_name: string | null; tactical: number; man_management: number; judging: number; motivating: number; working_youngsters: number; physio_level: number; wage_weekly: number };
 type Player = { id: number; first_name: string; last_name: string; common_name: string; nation: string; nation_id: number; club: string; club_id: number | null; position: string; ca: number; pa: number; age: number; foot: string };
@@ -15,6 +16,7 @@ export default function ClubEditor({ club, nations, onClose }: { club: any; nati
   const [squad, setSquad] = useState<Player[]>([]);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [search, setSearch] = useState("");
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
   const refresh = async () => {
     try {
@@ -55,6 +57,16 @@ export default function ClubEditor({ club, nations, onClose }: { club: any; nati
   };
 
   const freePlayers = allPlayers.filter((p) => (p.club_id ?? null) !== club.id && (!search || (p.common_name || p.first_name + " " + p.last_name).toLowerCase().includes(search.toLowerCase())));
+
+  if (editingPlayer) {
+    return (
+      <PlayerEditor
+        player={editingPlayer}
+        nations={nations}
+        onClose={() => { setEditingPlayer(null); refresh(); setMsg("Plantilla actualizada"); }}
+      />
+    );
+  }
 
   return (
     <div className="rounded-xl border border-sky-500/30 bg-fm-panel p-4">
@@ -132,7 +144,9 @@ export default function ClubEditor({ club, nations, onClose }: { club: any; nati
           <div className="grid gap-1 sm:grid-cols-2">
             {squad.map((p)=>(
               <div key={p.id} className="flex items-center justify-between rounded bg-fm-panel px-2 py-1.5 text-sm">
-                <span>{p.common_name} <span className="rounded bg-fm-bg px-1.5 py-0.5 text-xs font-bold">{p.position}</span> <span className="font-mono text-xs text-fm-dim">CA {p.ca}</span></span>
+                <button onClick={()=>setEditingPlayer(p)} className="text-left hover:text-fm-accent">
+                  {p.common_name} <span className="rounded bg-fm-bg px-1.5 py-0.5 text-xs font-bold">{p.position}</span> <span className="font-mono text-xs text-fm-dim">CA {p.ca}</span>
+                </button>
                 <button onClick={()=>removePlayer(p.id)} className="rounded bg-red-600 px-2 py-0.5 text-xs text-white">Quitar</button>
               </div>
             ))}
