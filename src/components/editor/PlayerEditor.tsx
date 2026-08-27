@@ -12,11 +12,38 @@ const GROUPS: Record<string, string[]> = {
   "Oculto": ["professionalism","consistency","importantMatches","injuryProneness"],
 };
 
-function Num({ label, v, onChange }: { label:string; v:number; onChange:(n:number)=>void }) {
+const LABELS: Record<string, string> = {
+  firstTouch:"Primer toque", dribbling:"Regate", ballControl:"Control", technique:"Técnica", passing:"Pase", vision:"Visión", crossing:"Centro", longShots:"Tiro lejano", finishing:"Definición", heading:"Cabeceo", penaltyTaking:"Penaltis", tackling:"Entrada", marking:"Marcaje", interception:"Intercepción", blocking:"Bloqueo",
+  anticipation:"Anticipación", decisions:"Decisiones", positioning:"Colocación", offTheBall:"Desmarque", workRate:"Trabajo", composure:"Calma", concentration:"Concentración", determination:"Determinación", bravery:"Valentía", aggression:"Agresividad", leadership:"Liderazgo", teamwork:"Trabajo equipo", flair:"Imaginación",
+  acceleration:"Aceleración", pace:"Velocidad", agility:"Agilidad", balance:"Equilibrio", stamina:"Resistencia", strength:"Fuerza", jumping:"Salto",
+  reflexes:"Reflejos", handling:"Manejo", oneOnOnes:"Uno contra uno", positioningGk:"Colocación portero", rushingOut:"Salidas", throwing:"Saques mano", kicking:"Saques pie",
+  professionalism:"Profesionalidad", consistency:"Regularidad", importantMatches:"Partid. import.", injuryProneness:"Propensión lesión",
+};
+
+// Atributos clave según posición para calcular la Calidad Actual (CA)
+const POS_CORE: Record<string, string[]> = {
+  POR: ["reflexes","handling","oneOnOnes","positioningGk","rushingOut","decisions","positioning","composure"],
+  CIE: ["tackling","marking","interception","blocking","positioning","anticipation","decisions","passing","strength"],
+  ALA: ["dribbling","pace","acceleration","agility","crossing","passing","vision","finishing","workRate"],
+  PIV: ["finishing","technique","composure","positioning","offTheBall","strength","balance","ballControl"],
+  UNI: ["passing","vision","decisions","positioning","workRate","technique","tackling","finishing"],
+};
+
+function calcCA(a: Attr): number {
+  const keys = POS_CORE[a.position] ?? POS_CORE.UNI;
+  const vals = keys.map((k) => a[k] ?? 10);
+  const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+  return Math.max(1, Math.min(200, Math.round(avg * 5)));
+}
+
+function Num({ label, v, onChange, auto }: { label:string; v:number; onChange:(n:number)=>void; auto?: boolean }) {
   return (
     <label className="flex flex-col">
       <span className="text-[10px] uppercase tracking-wider text-fm-dim">{label}</span>
-      <input type="number" min={1} max={20} value={v} onChange={(e)=>onChange(Number(e.target.value))} className="w-16 rounded border border-fm-border bg-fm-bg px-1.5 py-1 font-mono text-sm" />
+      <div className="flex items-center gap-1">
+        <input type="number" min={1} max={200} value={v} onChange={(e)=>onChange(Number(e.target.value))} className="w-16 rounded border border-fm-border bg-fm-bg px-1.5 py-1 font-mono text-sm" />
+      </div>
+      {auto && <span className="text-[9px] text-fm-accent">auto</span>}
     </label>
   );
 }
@@ -27,18 +54,31 @@ export default function PlayerEditor({ player, nations, onClose }: { player:any;
   const [nationId, setNationId] = useState(player.nation_id ?? 1);
   const [clubId, setClubId] = useState<string>(player.club_id ? String(player.club_id) : "");
   const [attrs, setAttrs] = useState<Attr | null>(null);
+  const [autoCalc, setAutoCalc] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<Attr>("editor_get_player_attributes", { playerId: player.id }).then(setAttrs).catch((e)=>setMsg(String(e)));
+    invoke<Attr>("editor_get_player_attributes", { playerId: player.id }).then((a)=>{ setAttrs(a); }).catch((e)=>setMsg(String(e)));
   }, [player.id]);
 
-  const setAttr = (k:string, n:number) => setAttrs((a)=> a ? ({ ...(a as any), [k]: n }) : a);
+  // Al cambiar un atributo, si autoCalc está activo, recalcular CA y ajustar PA
+  const applyAttr = (k:string, n:number) => {
+    setAttrs((a)=>{
+      if (!a) return a;
+      const next = { ...(a as any), [k]: n };
+      if (autoCalc) {
+        const ca = calcCA(next as Attr);
+        next.ca = ca;
+        if (next.pa < ca) next.pa = ca;
+      }
+      return next as Attr;
+    });
+  };
 
   const saveIdentity = async () => {
     try {
       await invoke("editor_update_player", { id: player.id, first, last, nationId, clubId: clubId ? Number(clubId) : null, ca: attrs?.ca ?? 0, pa: attrs?.pa ?? 0, pos: attrs?.position ?? player.position });
-      setMsg("Guardado");
+      setMsg("Identidad guardada");
     } catch (e) { setMsg(String(e)); }
   };
   const saveAttrs = async () => {
@@ -83,21 +123,28 @@ export default function PlayerEditor({ player, nations, onClose }: { player:any;
                 {["POR","CIE","ALA","PIV","UNI"].map((p)=> <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <Num label="CA" v={attrs.ca} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), ca: n }) : a)} />
-            <Num label="PA" v={attrs.pa} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), pa: n }) : a)} />
+            <Num label="CA (Calidad Actual)" v={attrs.ca} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), ca: n }) : a)} auto={autoCalc} />
+            <Num label="CP (Potencial)" v={attrs.pa} onChange={(n)=>setAttrs((a)=> a ? ({ ...(a as any), pa: n }) : a)} />
           </div>
+          <label className="flex items-center gap-2 text-xs text-fm-dim">
+            <input type="checkbox" checked={autoCalc} onChange={(e)=>setAutoCalc(e.target.checked)} className="accent-fm-accent" />
+            Calcular CA automáticamente según los atributos (si lo desactivas, puedes fijarla a mano). CP ≥ CA siempre.
+          </label>
 
           {Object.entries(GROUPS).map(([group, keys])=>(
             <div key={group}>
               <div className="mb-1 text-xs font-bold uppercase tracking-widest text-fm-dim">{group}</div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-8">
-                {keys.map((k)=> <Num key={k} label={k} v={attrs[k] ?? 10} onChange={(n)=>setAttr(k, n)} />)}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                {keys.map((k)=> <Num key={k} label={LABELS[k] ?? k} v={attrs[k] ?? 10} onChange={(n)=>applyAttr(k, n)} />)}
               </div>
             </div>
           ))}
 
-          <button onClick={saveAttrs} className="rounded bg-fm-accent px-4 py-1.5 text-sm font-bold text-black">Guardar atributos</button>
-          <div className="text-xs text-fm-dim">Nota: el select de posición se aplica al guardar atributos (actualiza player_positions).</div>
+          <div className="flex items-center gap-3">
+            <button onClick={saveAttrs} className="rounded bg-fm-accent px-4 py-1.5 text-sm font-bold text-black">Guardar atributos</button>
+            <button onClick={( )=>{ setAttrs((a)=> a ? ({ ...(a as any), ca: calcCA(a), pa: Math.max(a.pa, calcCA(a)) }) : a); setMsg("CA recalculada"); }} className="rounded border border-fm-border px-3 py-1.5 text-sm text-fm-dim hover:text-white">Recalcular CA</button>
+          </div>
+          <div className="text-xs text-fm-dim">La posición se aplica al guardar atributos (actualiza player_positions) y define qué atributos ponderan el cálculo de CA.</div>
         </div>
       </div>
     </div>
